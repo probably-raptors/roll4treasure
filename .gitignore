@@ -205,3 +205,14 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+printf "%s\n" \
+"venv/" \
+"__pycache__/" \
+".env" \
+".DS_Store" \
+"*.pyc" \
+"img-cache/" \
+".idea/" ".vscode/" \
+".aws/" \
+> .gitignore
