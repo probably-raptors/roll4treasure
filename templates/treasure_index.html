@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Treasure Cruise • Setup</title>
+  <link rel="stylesheet" href="/static/main.css">
+  <style>
+    .setup { max-width: 860px; margin: 16px auto; padding: 0 12px; }
+    .stack > * + * { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  {% include "_nav.html" %}
+  <div class="setup stack">
+    <h1>Treasure Cruise • Create Treasure Pile</h1>
+
+    {% if error %}
+    <div style="border:1px solid #e99; background:#fee; color:#900; padding:8px 10px; border-radius:8px;">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/treasure/create" class="card stack">
+      <label>Moxfield deck URL or id</label>
+      <input type="text" name="deck_url" placeholder="https://www.moxfield.com/decks/XXXXXX">
+
+      <div class="muted">— or —</div>
+
+      <label>Raw card list</label>
+      <textarea name="raw_list" placeholder="Sol Ring
+Arcane Signet
+Curse of Opulence
+..."></textarea>
+
+      <label>Players (comma separated)</label>
+      <input type="text" name="players" value="">
+
+      <label>Seed (optional)</label>
+      <input type="number" name="seed">
+
+      <div class="actions" style="margin-top:8px;">
+        <button class="btn">Create Session</button>
+      </div>
+    </form>
+
+    <div class="card stack">
+      <h2>Restore Session</h2>
+      <form method="GET" action="/treasure/open" class="row" style="gap:8px; align-items:flex-end;">
+        <div style="flex:1;">
+          <label for="restore_sid">Session code or URL</label>
+          <input id="restore_sid" name="sid" placeholder="Paste code or /treasure/URL">
+        </div>
+        <div>
+          <button class="btn" style="min-width:120px;">Open</button>
+        </div>
+      </form>
+      <div class="muted" style="font-size:14px;">Tip: You can paste the whole session URL or just the 32-char code.</div>
+    </div>
+  </div>
+</body>
+</html>

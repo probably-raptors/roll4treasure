@@ -1,0 +1,164 @@
+# app/treasure/service.py
+from __future__ import annotations
+from typing import List
+from uuid import uuid4
+import os, re, requests
+from requests.adapters import HTTPAdapter, Retry
+
+from .models import Card
+
+UA_HEADERS = {
+    # Pretend to be a normal browser; some endpoints block default Python UA.
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/plain, */*",
+}
+
+_SESSION = requests.Session()
+_SESSION.headers.update({"User-Agent": UA_HEADERS["User-Agent"], "Accept": UA_HEADERS["Accept"]})
+_SESSION.mount(
+    "https://,
+    HTTPAdapter(
+        max_retries=Retry(
+            total=3,
+            backoff_factor=0.4,
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods(frozenset(["GET"]),
+        )
+    ),
+)
+
+def _extract_deck_id(deck_url: str) -> str:
+    """
+    Accept either a full moxfield URL or a bare publicId (alnum).
+    Examples:
+      https://www.moxfield.com/decks/RXUTPR2uZk2guUuFICDhYg  -> RXUTPR2uZk2guUuFICDhYg
+      RXUTPR2uZk2guUuFICDhYg                                -> RXUTPR2uZk2guUuFICDhYg
+    """
+    s = (deck_url or "").strip()
+    m = re.search(r"/decks/([A-Za-z0-9]+)", s)
+    if m:
+        return m.group(1)
+    if re.fullmatch(r"[A-Za-z0-9]+", s):
+        return s
+    raise RuntimeError("Could not extract deck id from Moxfield URL or id.")
+
+def fetch_moxfield_list(deck_url: str) -> List[str]:
+    """
+    Fetch the deck JSON and *robustly* extract card names by recursively walking
+    the JSON. We collect any object that has:
+      - a 'card' dict with 'name'  (common v3 shape), or
+      - a direct 'name' and likely a 'board' or similar marker.
+    Quantity can appear as 'quantity', 'count', or 'qty'. Default 1.
+    """
+    deck_id = _extract_deck_id(deck_url)
+    api_url = f"https://api2.moxfield.com/v3/decks/all/{deck_id}"
+
+    cookie = os.getenv("MOXFIELD_COOKIE", "").strip()
+    if not cookie:
+        raise RuntimeError("MOXFIELD_COOKIE is not set in environment.")
+
+    headers = {
+        "User-Agent": UA_HEADERS["User-Agent"],
+        "Accept": UA_HEADERS["Accept"],
+        "Origin": "https://www.moxfield.com",
+        "Referer": f"https://www.moxfield.com/decks/{deck_id}",
+        "Cookie": cookie,
+    }
+
+    r = requests.get(api_url, headers=headers, timeout=15)
+    # Diagnostics (remove once confirmed)
+    print(f"[moxfield] GET {api_url} -> {r.status_code}, body_len={len(r.text)}")
+    if r.status_code != 200:
+        raise RuntimeError(f"Moxfield fetch failed: {r.status_code} {r.text[:200]}")
+
+    data = r.json()
+
+    names: List[str] = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            # Pattern A: { card: { name: "Sol Ring", ... }, quantity/count/qty: 1 }
+            if "card" in node and isinstance(node["card"], dict) and "name" in node["card"]:
+                nm = node["card"]["name"]
+                qty = node.get("quantity") or node.get("count") or node.get("qty") or 1
+                try:
+                    qty = int(qty)
+                except Exception:
+                    qty = 1
+                names.extend([nm] * max(1, qty))
+
+            # Pattern B: sometimes a direct name exists on the item (less common)
+            elif "name" in node and any(k in node for k in ("board", "type", "type_line", "set")):
+                nm = str(node["name"])
+                qty = node.get("quantity") or node.get("count") or node.get("qty") or 1
+                try:
+                    qty = int(qty)
+                except Exception:
+                    qty = 1
+                names.extend([nm] * max(1, qty))
+
+            # Recurse into values
+            for v in node.values():
+                walk(v)
+
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(data)
+
+    print(f"[treasure] parsed {len(names)} names from moxfield")
+    return names
+
+def parse_raw_list(raw: str) -> List[str]:
+    """
+    Accepts the plain text export (one card per line, optionally 'N x Name').
+    Returns a flat list of names, repeated by quantity.
+    """
+    out: List[str] = []
+    for line in (raw or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = re.match(r"(?i)^\s*(\d+)\s*x?\s+(.+)$", line)
+        if m:
+            qty = int(m.group(1))
+            name = m.group(2).strip()
+            out.extend([name] * qty)
+        else:
+            out.append(line)
+    return out
+
+def choose_tag(name: str) -> str:
+    n = name.lower()
+    if "curse" in n:
+        return "curse"
+    if any(k in n for k in ("signet", "talisman", "sol ring", "mind stone", "arcane signet", "fellwar stone")):
+        return "rock"
+    return "utility"
+
+def normalize_to_cards(names: List[str]) -> List[Card]:
+    return [Card(id=uuid4().hex, name=n, tag=choose_tag(n)) for n in names]
+
+def build_pile_from_source(deck_url: str | None, raw_list: str | None) -> List[Card]:
+    """
+    Try Moxfield first (if we have a URL), else parse a pasted list.
+    (Currently no additional filtering—keeps all parsed names. Tagging is heuristic.)
+    """
+    names: List[str] = []
+    if deck_url:
+        names = fetch_moxfield_list(deck_url)
+        print(f"[treasure] build_pile_from_source: got {len(names)} names before normalization")
+    elif raw_list:
+        names = parse_raw_list(raw_list)
+        print(f"[treasure] build_pile_from_source: got {len(names)} names from raw list")
+    else:
+        return []
+
+    cards = normalize_to_cards(names)
+    print(f"[treasure] final cards count: {len(cards)}")
+    return cards

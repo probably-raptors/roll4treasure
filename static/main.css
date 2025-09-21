@@ -1,0 +1,179 @@
+/* ===========================
+   EDH Tools • Unified Styles
+   Mobile-first, dark theme
+   (readability tuned for phones)
+   =========================== */
+
+/* --- Reset / base --- */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+:root {
+  /* Color tokens */
+  --bg: #0f2a28;
+  --bg-elev-1: #0f2523;
+  --bg-elev-2: #112f2c;
+  --fg: #e9f4f2;
+  --fg-muted: #cfe4e1;
+  --fg-dim: #a6c7c3;
+
+  --accent: #1f9d86;
+  --accent-ink: #032a22;
+
+  --border: rgba(255,255,255,.12);
+  --border-soft: rgba(255,255,255,.08);
+  --shadow-inset: 0 1px 0 rgba(0,0,0,.18) inset;
+
+  /* Sizing */
+  --radius: 14px;
+  --radius-lg: 16px;
+  --pad: 14px;
+  --tap: 52px;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 17px/1.55 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+a { color: #aee; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1 { font-size: 24px; margin: 14px 0 10px; font-weight: 800; }
+h2 { font-size: 20px; margin: 12px 0 8px; font-weight: 700; }
+p { margin: 10px 0; }
+
+label { display:block; margin: 12px 0 8px; font-weight: 600; }
+
+/* Inputs: do NOT force width on checkboxes/radios  */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea, select {
+  width: 100%;
+  background: var(--bg-elev-1);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 17px; /* prevents iOS zoom */
+}
+textarea { min-height: 150px; }
+
+/* Proper checkbox/radio sizing + alignment */
+input[type="checkbox"], input[type="radio"] {
+  width: auto;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  vertical-align: middle;
+}
+
+/* --- Layout helpers --- */
+.container { max-width: 880px; margin: 16px auto; padding: 0 var(--pad); }
+.stack-8  > * + * { margin-top: 8px; }
+.stack-12 > * + * { margin-top: 12px; }
+.stack-16 > * + * { margin-top: 16px; }
+.row { display:flex; align-items:center; gap: 10px; flex-wrap: wrap; }
+.grid { display: grid; gap: 14px; }
+@media (min-width: 660px) { .grid.grid-2 { grid-template-columns: 1fr 1fr; } }
+
+/* --- Cards / tiles --- */
+.card {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  box-shadow: var(--shadow-inset);
+}
+.card--clickable { cursor: pointer; }
+.card--clickable:active { transform: translateY(1px); }
+
+/* --- Buttons --- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: var(--tap);
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #0b0b0b; color: #fff;
+  font-weight: 800; letter-spacing: .2px;
+  transition: filter .12s ease;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn:disabled { opacity: .6; pointer-events: none; }
+.btn--ghost { background: transparent; color: var(--fg); border-color: var(--border-soft); }
+.btn--small { min-height: 36px; padding: 7px 12px; border-radius: 10px; font-weight: 700; }
+.btn--danger { background: #b33939; border-color: rgba(255,255,255,.18); }
+
+/* Key/value micro-styles used across pages */
+.k { color: var(--fg-dim); font-size: 14px; }
+.v { font-weight: 800; font-size: 16px; }
+
+/* --- Chips --- */
+.chips { display:flex; gap:8px; overflow:auto; -webkit-overflow-scrolling:touch; }
+.chip {
+  padding: 8px 12px; border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: var(--fg); white-space: nowrap; font-size: 15px;
+}
+.chip--active { background: var(--accent); color: var(--accent-ink); font-weight: 800; }
+
+/* --- Sticky bars --- */
+.sticky-top {
+  position: sticky; top: 0; z-index: 8;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-soft);
+}
+.sticky-bottom {
+  position: sticky; bottom: 0; z-index: 9;
+  background: linear-gradient(180deg, rgba(15,42,40,.6), rgba(15,42,40,.95));
+  backdrop-filter: blur(6px);
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border-soft);
+}
+.actionbar { display:grid; gap:12px; grid-template-columns: 1fr auto; }
+@media (max-width: 420px) { .actionbar { grid-template-columns: 1fr 1fr; } }
+
+/* --- Toasts --- */
+.toasts { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 10px; }
+.toast { background: #1b3a38; color: #fff; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+
+/* --- Log --- */
+.log { margin-top: 14px; }
+.log__box { border:1px solid var(--border); background: var(--bg-elev-1); border-radius: var(--radius); padding:12px; min-height:54px; max-height:260px; overflow:auto; }
+.log__toggle { background:none; border:none; color:#aee; text-decoration:underline; padding:6px 8px; }
+
+/* --- Treasure choice cards --- */
+.choice { border:1px solid var(--border); background: var(--bg-elev-2); border-radius: var(--radius); padding:14px; box-shadow: var(--shadow-inset); }
+.choice__name { font-weight:800; margin-bottom:8px; font-size:17px; }
+.choice__btn { display:inline-block; padding:10px 12px; border-radius:10px; background:#0c0c0c; color:#fff; font-weight:700; }
+
+/* --- Utilities --- */
+.muted { color: var(--fg-dim); }
+.center { text-align: center; }
+.hide { display: none !important; }
+
+/* === Images for Treasure Cruise === */
+.reveal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 560px) { .reveal-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.card-img {
+  width: 100%; aspect-ratio: 488 / 680; object-fit: cover;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--bg-elev-1); display: block;
+}
+.thumb-row { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+.thumb {
+  flex: 0 0 auto; width: 96px; aspect-ratio: 488 / 680; object-fit: cover;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--bg-elev-1); box-shadow: var(--shadow-inset);
+}
+
+/* Treasure Cruise cards grid */
+.tc-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+@media (min-width: 480px) { .tc-cards { grid-template-columns: repeat(4, 1fr); } }
+.tc-card { display:block; border-radius:10px; overflow:hidden; background:#0a0a0a; border:1px solid var(--border); aspect-ratio:63/88; }
+.tc-card img { width:100%; height:100%; object-fit:cover; display:block; }
