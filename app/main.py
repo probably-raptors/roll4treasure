@@ -1,50 +1,51 @@
-import os
+# /opt/r4t/app/main.py
 import asyncio
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
-from app.web.routes_sim import router as sim_router
-from app.web.routes_treasure import router as treasure_router
-from app.treasure.store import init_pool, close_pool, periodic_cleanup
+from app.core.config import settings
+from app.web.router import make_root_router
 
-app = FastAPI(title="Roll 4 Treasure")
+# Treasure store (DB + assets)
+from app.features.treasure.store import init_pool, close_pool, periodic_cleanup
 
-@app.on_event("startup")
-async def _startup():
-    # DB pool
-    await init_pool()
 
-    # TTL cleanup background task
-    ttl_hours = int(os.getenv("SESSION_TTL_HOURS", "72"))              # default 72h
-    interval_seconds = int(os.getenv("CLEANUP_INTERVAL_SECONDS", "900"))  # default 15m
-    app.state.cleanup_stop = asyncio.Event()
-    app.state.cleanup_task = asyncio.create_task(
-        periodic_cleanup(ttl_hours=ttl_hours, interval_seconds=interval_seconds, stop_event=app.state.cleanup_stop)
-    )
+def create_app() -> FastAPI:
+    app = FastAPI(title=settings.APP_NAME)
 
-@app.on_event("shutdown")
-async def _shutdown():
-    # stop cleanup loop
-    stop = getattr(app.state, "cleanup_stop", None)
-    task = getattr(app.state, "cleanup_task", None)
-    if stop is not None:
-        stop.set()
-    if task is not None:
-        try:
-            await task
-        except Exception:
-            pass
+    # Static
+    app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 
-    await close_pool()
+    # Routers
+    app.include_router(make_root_router())
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+    # ---- lifecycle ----
+    @app.on_event("startup")
+    async def _startup() -> None:
+        # Initialize DB pool (uses DATABASE_URL from .env via store._dsn())
+        await init_pool()
+        # Optional: background cleanup loop (stop cleanly on shutdown)
+        app.state._cleanup_stop = asyncio.Event()
+        app.state._cleanup_task = asyncio.create_task(
+            periodic_cleanup(stop_event=app.state._cleanup_stop)
+        )
 
-templates = Jinja2Templates(directory="templates")
+    @app.on_event("shutdown")
+    async def _shutdown() -> None:
+        # stop cleanup loop
+        stop = getattr(app.state, "_cleanup_stop", None)
+        if stop:
+            stop.set()
+        task = getattr(app.state, "_cleanup_task", None)
+        if task:
+            try:
+                await task
+            except Exception:
+                pass
+        # Close DB pool
+        await close_pool()
 
-@app.get("/")
-def home(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+    return app
 
-app.include_router(sim_router, prefix="/gamble")
-app.include_router(treasure_router)
+# Run locally:
+# python -m uvicorn app.main:create_app --factory --reload --port 8001

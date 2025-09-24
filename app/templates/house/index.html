@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Mr. House's Puzzlebox</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/house.css">
+</head>
+<body>
+  {% include "_nav.html" %}
+
+  <div id="sticky" class="sticky-top">
+    <div class="row" style="justify-content:space-between;">
+      <div>
+        <span id="s-iters">—</span> iters •
+        <span id="s-robots">R:—</span> •
+        <span id="s-treas">T:—</span> •
+        <span id="s-counters">PB Cntrs:—</span> •
+        <span id="s-mana">Mana:—</span>
+      </div>
+      <button class="btn btn--small" id="copySummaryBtn">Copy</button>
+    </div>
+  </div>
+
+  <div class="container page">
+    <h1>Mr. House's Puzzlebox Simulator</h1>
+
+    <form id="simForm" method="POST" action="{{ url_for('run_sim') }}" autocomplete="off">
+      <div class="grid">
+        <div>
+          <label for="untapped_other_init">Untapped artifacts (excluding Puzzlebox)</label>
+          <input id="untapped_other_init" name="untapped_other_init" type="number" min="0" value="{{ untapped_other_init }}" />
+          <div class="row" style="margin-top:8px;">
+            <span class="chip" data-plus="2">+2</span>
+            <span class="chip" data-plus="5">+5</span>
+            <span class="chip" data-plus="10">+10</span>
+            <span class="chip" data-set="0">Set 0</span>
+          </div>
+        </div>
+      </div>
+
+      <h2>Stop Conditions</h2>
+
+      <div class="checklist row" style="gap:10px; align-items:center;">
+        <input type="checkbox" id="stop_ge_100" name="stop_when_counters_ge_100" value="1" {{ 'checked' if stop_at_100 else '' }}>
+        <label for="stop_ge_100" style="margin:0;">Stop at PB counters ≥ 100</label>
+      </div>
+
+      <label for="stop_treasures_ge">Stop at total Treasures ≥</label>
+      <input id="stop_treasures_ge" name="stop_treasures_ge" type="number" min="0" placeholder="—">
+
+      <label for="stop_robots_ge">Stop at total Robots ≥</label>
+      <input id="stop_robots_ge" name="stop_robots_ge" type="number" min="0" placeholder="—">
+
+      <label for="stop_mana_ge">Stop at PB Mana ≥</label>
+      <input id="stop_mana_ge" name="stop_mana_ge" type="number" min="0" placeholder="—">
+
+      <label for="seed">Seed (optional)</label>
+      <input id="seed" name="seed" type="number" value="{{ seed }}" />
+
+      <div class="row" style="margin-top:12px;">
+        <button id="runBtn" class="btn" type="submit">Run Simulation</button>
+        <span id="runNote" class="muted" style="margin-left:8px;"></span>
+      </div>
+    </form>
+
+    {% if result_json %}
+      <div id="result" data-json='{{ result_json | safe }}'></div>
+    {% endif %}
+  </div>
+
+  <script src="/static/js/base.js"></script>
+  <script src="/static/js/house.js"></script>
+</body>
+</html>
