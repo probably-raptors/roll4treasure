@@ -1,0 +1,119 @@
+/* House (Puzzlebox) specific tweaks */
+
+/* Keep the checkbox + label perfectly aligned */
+.checklist { display:flex; align-items:center; gap:10px; }
+.checklist input[type="checkbox"] { width: 18px; height: 18px; }
+.checklist label { margin: 0; }
+
+/* Slightly larger “k/v” pairs for readability */
+.k { font-size: 14px; color: var(--fg-dim); letter-spacing: .2px; }
+.v { font-size: 18px; font-weight: 800; margin: 2px 0 8px; }
+
+/* Keep sticky bar from looking empty on first load */
+#sticky .row { min-height: 28px; }
+
+/* Log panel */
+.house-log {
+  max-height: 220px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #e9eef0;
+  padding: 6px 8px;
+  background: #0e2020;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.house-log__line + .house-log__line { margin-top: 4px; }
+
+/* --- Log formatting (collapsed by default; tail always visible) --- */
+.house-log {
+  max-height: 220px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #e9eef0;
+  padding: 6px 8px;
+  background: #0e2020;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.house-log--tail {
+  background: #132b1e;
+  border-color: #2f7a49;
+  font-weight: 600;
+}
+
+.log-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log-line + .log-line { margin-top: 4px; }
+
+.log-idx   { color: #9fe8c9; font-weight: 700; }
+.log-roll  { color: #ffd089; font-weight: 600; }
+.log-label { opacity: .8; font-weight: 600; }
+
+.log-delta  { color: #dffbe9; }
+.log-tapped { color: #c4d7e1; font-style: italic; }
+.log-note   { color: #a9b9ff; }
+
+.log-sep { opacity: .5; padding: 0 6px; }
+.log-empty { opacity: .7; }
+
+/* ---- Responsive log readability (mobile-first tweaks) ---- */
+.house-log { word-break: break-word; }
+
+/* Badge-y index, a bit more visible on all sizes */
+.log-idx {
+  background: rgba(159,232,201,0.12);
+  border: 1px solid rgba(159,232,201,0.35);
+  border-radius: 999px;
+  padding: 1px 8px;
+  display: inline-block;
+}
+
+/* Tail line remains a little more prominent */
+.house-log--tail .log-line {
+  background: rgba(47,122,73,0.14);
+  border: 1px solid rgba(47,122,73,0.45);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 560px) {
+  /* Turn each line into a small card with a grid layout */
+  .log-line {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 8px;              /* row, col */
+    white-space: normal;       /* allow wrapping */
+    background: #0d1918;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 6px 8px;
+  }
+  .log-line + .log-line { margin-top: 6px; }
+
+  /* First row: idx | roll */
+  .log-idx  { grid-column: 1; align-self: center; }
+  .log-roll { grid-column: 2; align-self: center; font-weight: 700; }
+
+  /* Hide the dot separators on mobile */
+  .log-sep { display: none; }
+
+  /* Details flow to full width rows under the first line */
+  .log-delta,
+  .log-tapped,
+  .log-note {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+  }
+
+  /* Slightly larger, airier text on small screens */
+  .house-log,
+  .house-log--tail {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+}

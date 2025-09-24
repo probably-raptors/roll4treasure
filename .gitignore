@@ -41,3 +41,10 @@ img-cache/
 .DS_Store
 .idea/
 .vscode/
+.env
+venv/
+__pycache__/
+*.py[cod]
+.img-cache/
+img-cache/
+.DS_Store
