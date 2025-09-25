@@ -1,9 +1,8 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8" />
+  {% include "_head.html" %}
   <title>Treasure Cruise • Setup</title>
-  <link rel="stylesheet" href="/static/css/base.css">
   <style>
     .setup { max-width: 860px; margin: 16px auto; padding: 0 12px; }
     .stack > * + * { margin-top: 12px; }
@@ -12,7 +11,7 @@
 <body>
   {% include "_nav.html" %}
   <div class="setup stack">
-    <h1>Treasure Cruise • Create Treasure Pile</h1>
+    <h1>Treasure Cruise</h1>
 
     {% if error %}
     <div style="border:1px solid #e99; background:#fee; color:#900; padding:8px 10px; border-radius:8px;">
@@ -21,7 +20,7 @@
     {% endif %}
 
     <form method="POST" action="/treasure/create" class="card stack">
-      <label>Moxfield deck URL or id</label>
+      <label>Moxfield deck URL or ID</label>
       <input type="text" name="deck_url" placeholder="https://www.moxfield.com/decks/XXXXXX">
 
       <div class="muted">— or —</div>

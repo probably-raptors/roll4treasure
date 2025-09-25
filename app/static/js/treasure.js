@@ -70,11 +70,14 @@
 
   const setBusy = (busy) => {
     inflight = busy;
-    updateControls();
     if (btnRoll) {
-      if (busy) { btnRoll.dataset.label = btnRoll.textContent; btnRoll.textContent = "…"; }
-      else if (btnRoll.dataset.label) { btnRoll.textContent = btnRoll.dataset.label; delete btnRoll.dataset.label; }
+      if (busy) {
+        btnRoll.textContent = "…";
+      } else {
+        btnRoll.textContent = `Pay ${costNow()} • Roll d6`;
+      }
     }
+    updateControls();
   };
 
   const lockAll = () => {
