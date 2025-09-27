@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  {% include "_head.html" %}
+  <title>Treasure Cruise • Preparing Session</title>
+  <style>
+    .pc-wrap { max-width: 600px; margin: 24px auto; padding: 0 12px; }
+    .pc-bar { height: 14px; background: rgba(255,255,255,.08); border:1px solid var(--border); border-radius: 999px; overflow: hidden; }
+    .pc-fill { height: 100%; width: 0%; background: var(--accent); }
+    .pc-num { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  {% include "_nav.html" %}
+  <div class="pc-wrap stack-12">
+    <h1>Preparing Your Session</h1>
+    <p class="muted">We’re fetching card images from Scryfall and caching them locally. This happens only once per deck.</p>
+
+    <div class="card stack-12">
+      <div class="row" style="justify-content:space-between;align-items:center;">
+        <div>Session code:</div>
+        <code>{{ sid }}</code>
+      </div>
+      <div class="pc-bar"><div class="pc-fill" id="pc-fill"></div></div>
+      <div class="row" style="justify-content:space-between;">
+        <div class="pc-num"><span id="pc-done">0</span> / <span id="pc-total">0</span></div>
+        <div id="pc-status" class="muted">Starting…</div>
+      </div>
+      <div id="pc-actions" style="display:none;">
+        <a class="btn" id="pc-open" href="/treasure/{{ sid }}">Open Session</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const sid = "{{ sid }}";
+    const fill = document.getElementById("pc-fill");
+    const doneEl = document.getElementById("pc-done");
+    const totalEl = document.getElementById("pc-total");
+    const statusEl = document.getElementById("pc-status");
+    const actions = document.getElementById("pc-actions");
+    const openBtn = document.getElementById("pc-open");
+
+    async function poll() {
+      try {
+        const r = await fetch(`/treasure/precache_status?sid=${encodeURIComponent(sid)}`);
+        if (!r.ok) throw new Error();
+        const j = await r.json();
+        totalEl.textContent = j.total || 0;
+        doneEl.textContent = j.done || 0;
+        const pct = (j.total ? Math.min(100, Math.round((j.done / j.total) * 100)) : 0);
+        fill.style.width = pct + "%";
+        statusEl.textContent = j.is_ready ? "Done." : "Fetching images…";
+        if (j.is_ready) {
+          actions.style.display = "block";
+          return; // stop polling
+        }
+      } catch(e) {
+        statusEl.textContent = "Waiting…";
+      }
+      setTimeout(poll, 800);
+    }
+    poll();
+  })();
+  </script>
+</body>
+</html>

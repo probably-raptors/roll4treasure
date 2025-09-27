@@ -1,13 +1,14 @@
 # /opt/r4t/app/main.py
 import asyncio
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.web.router import make_root_router
 
 # Treasure store (DB + assets)
-from app.features.treasure.store import init_pool, close_pool, periodic_cleanup
+from app.features.treasure.store import close_pool, init_pool, periodic_cleanup
+from app.web.router import make_root_router
 
 
 def create_app() -> FastAPI:
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
         await close_pool()
 
     return app
+
 
 # Run locally:
 # python -m uvicorn app.main:create_app --factory --reload --port 8001

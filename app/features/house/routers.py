@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.core.templates import templates
-from app.features.house.models import SimRequest
 from app.features.house.engine import simulate
+from app.features.house.models import SimRequest
 
 router = APIRouter()
 
@@ -18,12 +18,12 @@ async def house_index(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("house/index.html", {"request": request})
 
 
-def _build_req_from_params(params: Dict[str, Any]) -> SimRequest:
-    def _str(name: str, default: Optional[str] = None) -> Optional[str]:
+def _build_req_from_params(params: dict[str, Any]) -> SimRequest:
+    def _str(name: str, default: str | None = None) -> str | None:
         v = params.get(name, default)
         return None if v in ("", None) else str(v)
 
-    def _int(name: str) -> Optional[int]:
+    def _int(name: str) -> int | None:
         v = _str(name)
         if v is None:
             return None
@@ -49,7 +49,7 @@ def _build_req_from_params(params: Dict[str, Any]) -> SimRequest:
     )
 
 
-def _serialize_result(res) -> Dict[str, Any]:
+def _serialize_result(res) -> dict[str, Any]:
     fb = res.final_board_state
     return {
         "iterations": res.iterations,

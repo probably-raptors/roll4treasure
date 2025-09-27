@@ -1,8 +1,13 @@
 # app/features/treasure/service.py
 from __future__ import annotations
-from typing import List, Any, Iterable, Optional
+
+import os
+import re
+from collections.abc import Iterable
+from typing import Any
 from uuid import uuid4
-import os, re, requests
+
+import requests
 
 from .models import Card
 
@@ -14,6 +19,7 @@ UA_HEADERS = {
     ),
     "Accept": "application/json, text/plain, */*",
 }
+
 
 def _extract_deck_id(deck_url: str) -> str:
     """
@@ -30,11 +36,13 @@ def _extract_deck_id(deck_url: str) -> str:
         return s
     raise RuntimeError("Could not extract deck id from Moxfield URL or id.")
 
+
 def _intish(x: Any, default: int = 1) -> int:
     try:
         return int(x)
     except Exception:
         return default
+
 
 def _is_tokenish(obj: dict) -> bool:
     """
@@ -59,8 +67,9 @@ def _is_tokenish(obj: dict) -> bool:
         return True
     return False
 
-def _collect_from_entries(entries: Iterable[dict]) -> List[str]:
-    names: List[str] = []
+
+def _collect_from_entries(entries: Iterable[dict]) -> list[str]:
+    names: list[str] = []
     for e in entries:
         if not isinstance(e, dict):
             continue
@@ -76,7 +85,8 @@ def _collect_from_entries(entries: Iterable[dict]) -> List[str]:
             names.extend([name] * max(1, qty))
     return names
 
-def fetch_moxfield_list(deck_url: str) -> List[str]:
+
+def fetch_moxfield_list(deck_url: str) -> list[str]:
     """
     Fetch the deck JSON and return ONLY the main deck (mainboard) card names,
     repeating by quantity. Tokens, sideboards, maybeboard, commanders, etc. are ignored.
@@ -107,11 +117,7 @@ def fetch_moxfield_list(deck_url: str) -> List[str]:
     try:
         boards = data.get("boards") or {}
         # Common keys that might denote the "mainboard"
-        main = (
-            boards.get("mainboard")
-            or boards.get("mainBoard")
-            or boards.get("main")
-        )
+        main = boards.get("mainboard") or boards.get("mainBoard") or boards.get("main")
         if isinstance(main, dict):
             # Some payloads have `cards` as dict(id->entry) or list
             cards = main.get("cards") or main.get("entries") or main.get("list") or main
@@ -129,9 +135,9 @@ def fetch_moxfield_list(deck_url: str) -> List[str]:
         print(f"[treasure] boards parse fallback: {e!r}")
 
     # --- Fallback: guarded recursive walk, capturing only when board is mainboard ---
-    names: List[str] = []
+    names: list[str] = []
 
-    def walk(node: Any, board_ctx: Optional[str] = None) -> None:
+    def walk(node: Any, board_ctx: str | None = None) -> None:
         if isinstance(node, dict):
             # Update board context if this node specifies it
             b = node.get("board")
@@ -143,7 +149,9 @@ def fetch_moxfield_list(deck_url: str) -> List[str]:
                 if "card" in node and isinstance(node["card"], dict) and "name" in node["card"]:
                     qty = _intish(node.get("quantity") or node.get("count") or node.get("qty"), 1)
                     names.extend([node["card"]["name"]] * max(1, qty))
-                elif "name" in node and any(k in node for k in ("type", "type_line", "set", "setCode", "collector_number")):
+                elif "name" in node and any(
+                    k in node for k in ("type", "type_line", "set", "setCode", "collector_number")
+                ):
                     qty = _intish(node.get("quantity") or node.get("count") or node.get("qty"), 1)
                     names.extend([str(node["name"])] * max(1, qty))
 
@@ -159,12 +167,13 @@ def fetch_moxfield_list(deck_url: str) -> List[str]:
     print(f"[treasure] mainboard extracted via fallback walker: {len(names)} names")
     return names
 
-def parse_raw_list(raw: str) -> List[str]:
+
+def parse_raw_list(raw: str) -> list[str]:
     """
     Accepts the plain text export (one card per line, optionally 'N x Name').
     Returns a flat list of names, repeated by quantity.
     """
-    out: List[str] = []
+    out: list[str] = []
     for line in (raw or "").splitlines():
         line = line.strip()
         if not line:
@@ -178,23 +187,29 @@ def parse_raw_list(raw: str) -> List[str]:
             out.append(line)
     return out
 
+
 def choose_tag(name: str) -> str:
     n = name.lower()
     if "curse" in n:
         return "curse"
-    if any(k in n for k in ("signet", "talisman", "sol ring", "mind stone", "arcane signet", "fellwar stone")):
+    if any(
+        k in n
+        for k in ("signet", "talisman", "sol ring", "mind stone", "arcane signet", "fellwar stone")
+    ):
         return "rock"
     return "utility"
 
-def normalize_to_cards(names: List[str]) -> List[Card]:
+
+def normalize_to_cards(names: list[str]) -> list[Card]:
     return [Card(id=uuid4().hex, name=n, tag=choose_tag(n)) for n in names]
 
-def build_pile_from_source(deck_url: str | None, raw_list: str | None) -> List[Card]:
+
+def build_pile_from_source(deck_url: str | None, raw_list: str | None) -> list[Card]:
     """
     Try Moxfield first (if we have a URL), else parse a pasted list.
     Only import *main deck* (mainboard) cards from Moxfield.
     """
-    names: List[str] = []
+    names: list[str] = []
     if deck_url:
         names = fetch_moxfield_list(deck_url)
         print(f"[treasure] build_pile_from_source: got {len(names)} names before normalization")

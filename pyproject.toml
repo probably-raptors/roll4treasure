@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E","F","W","I","B","UP","SIM","PL"]
+ignore = ["E203"]  # compatible with black slicing
+exclude = ["build", "dist", ".venv"]
+
+[tool.ruff.isort]
+known-first-party = ["app"]
+combine-as-imports = true
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+strict_equality = true
+plugins = []
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "-q"
+testpaths = ["tests"]
+filterwarnings = [
+  "ignore::DeprecationWarning",
+]

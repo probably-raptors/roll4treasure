@@ -1,16 +1,23 @@
 # app/features/treasure/store.py
 from __future__ import annotations
-from typing import Optional, Callable, Awaitable, Any
-import os, json, asyncio, logging
+
+import asyncio
+import json
+import logging
+import os
+from collections.abc import Awaitable, Callable
+from typing import Any
+
 import psycopg
-from psycopg_pool import AsyncConnectionPool
 from psycopg.types.json import Json
+from psycopg_pool import AsyncConnectionPool
 
 from app.features.treasure.models import Session
 
 log = logging.getLogger("r4t.store")
 
-_pool: Optional[AsyncConnectionPool] = None
+_pool: AsyncConnectionPool | None = None
+
 
 def _as_dict(val: Any) -> dict:
     if isinstance(val, dict):
@@ -21,11 +28,13 @@ def _as_dict(val: Any) -> dict:
         return json.loads(val)
     return json.loads(json.dumps(val))
 
+
 def _dsn() -> str:
     dsn = os.getenv("DATABASE_URL", "").strip()
     if not dsn:
         raise RuntimeError("DATABASE_URL is not set")
     return dsn
+
 
 async def init_pool() -> None:
     """Create the global async pool on startup and ensure schema."""
@@ -40,6 +49,7 @@ async def init_pool() -> None:
         # open explicitly to avoid deprecation warning
         await _pool.open()
         await ensure_schema()
+
 
 async def ensure_schema() -> None:
     assert _pool is not None
@@ -57,13 +67,16 @@ async def ensure_schema() -> None:
                 )
             """)
 
+
 async def close_pool() -> None:
     global _pool
     if _pool is not None:
         await _pool.close()
         _pool = None
 
+
 # ---------- sessions CRUD ----------
+
 
 async def create_session(s: Session) -> None:
     assert _pool is not None, "Pool not initialized"
@@ -74,7 +87,8 @@ async def create_session(s: Session) -> None:
                 (s.id, Json(s.model_dump())),
             )
 
-async def load_session(sid: str) -> Optional[Session]:
+
+async def load_session(sid: str) -> Session | None:
     assert _pool is not None, "Pool not initialized"
     async with _pool.connection() as ac:
         async with ac.transaction():
@@ -84,6 +98,7 @@ async def load_session(sid: str) -> Optional[Session]:
                 return None
             return Session.model_validate(_as_dict(row[0]))
 
+
 async def _load_for_update(ac: psycopg.AsyncConnection, sid: str) -> Session:
     cur = await ac.execute("SELECT data FROM sessions WHERE id=%s FOR UPDATE", (sid,))
     row = await cur.fetchone()
@@ -91,11 +106,13 @@ async def _load_for_update(ac: psycopg.AsyncConnection, sid: str) -> Session:
         raise KeyError("session not found")
     return Session.model_validate(_as_dict(row[0]))
 
+
 async def _save(ac: psycopg.AsyncConnection, s: Session) -> None:
     await ac.execute(
         "UPDATE sessions SET data=%s, updated_at=now() WHERE id=%s",
         (Json(s.model_dump()), s.id),
     )
+
 
 async def mutate_session(
     sid: str,
@@ -112,9 +129,11 @@ async def mutate_session(
             await _save(ac, s)
             return s
 
+
 # ---------- card asset helpers ----------
 
-async def get_asset(oracle_id: str) -> Optional[dict]:
+
+async def get_asset(oracle_id: str) -> dict | None:
     assert _pool is not None
     async with _pool.connection() as ac:
         async with ac.transaction():
@@ -125,17 +144,31 @@ async def get_asset(oracle_id: str) -> Optional[dict]:
             row = await cur.fetchone()
             if not row:
                 return None
-            keys = ["oracle_id","name","small_url","local_small_path","etag","last_modified","fetched_at"]
-            return dict(zip(keys, row))
+            keys = [
+                "oracle_id",
+                "name",
+                "small_url",
+                "local_small_path",
+                "etag",
+                "last_modified",
+                "fetched_at",
+            ]
+            return dict(zip(keys, row, strict=False))
+
 
 async def upsert_asset(
-    oracle_id: str, name: str, small_url: str,
-    local_small_path: Optional[str], etag: Optional[str], last_modified: Optional[str]
+    oracle_id: str,
+    name: str,
+    small_url: str,
+    local_small_path: str | None,
+    etag: str | None,
+    last_modified: str | None,
 ) -> None:
     assert _pool is not None
     async with _pool.connection() as ac:
         async with ac.transaction():
-            await ac.execute("""
+            await ac.execute(
+                """
                 INSERT INTO card_assets (oracle_id, name, small_url, local_small_path, etag, last_modified, fetched_at)
                 VALUES (%s, %s, %s, %s, %s, %s, now())
                 ON CONFLICT (oracle_id) DO UPDATE
@@ -145,9 +178,13 @@ async def upsert_asset(
                     etag = EXCLUDED.etag,
                     last_modified = EXCLUDED.last_modified,
                     fetched_at = now()
-            """, (oracle_id, name, small_url, local_small_path, etag, last_modified))
+            """,
+                (oracle_id, name, small_url, local_small_path, etag, last_modified),
+            )
+
 
 # ---------- TTL cleanup ----------
+
 
 async def cleanup_expired_sessions_once(ttl_hours: int = 72) -> int:
     """
@@ -178,10 +215,11 @@ async def cleanup_expired_sessions_once(ttl_hours: int = 72) -> int:
                 log.info("TTL cleanup removed %d session(s)", deleted)
             return deleted
 
+
 async def periodic_cleanup(
     ttl_hours: int = 72,
     interval_seconds: int = 900,
-    stop_event: Optional[asyncio.Event] = None,
+    stop_event: asyncio.Event | None = None,
 ) -> None:
     """
     Background loop to periodically call cleanup_expired_sessions_once.
@@ -203,7 +241,7 @@ async def periodic_cleanup(
                     break
                 else:
                     await asyncio.sleep(interval_seconds)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
     finally:
         log.info("periodic_cleanup loop stopped")
