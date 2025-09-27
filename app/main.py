@@ -1,4 +1,5 @@
 # /opt/r4t/app/main.py
+import contextlib
 import json
 import logging
 import time
@@ -76,6 +77,10 @@ def create_app() -> FastAPI:
 
     @app.on_event("shutdown")
     async def _shutdown() -> None:
+        task = getattr(app.state, "_cleanup_task", None)
+        if task:
+            with contextlib.suppress(Exception):
+                await task
         await close_pool()
 
     return app
