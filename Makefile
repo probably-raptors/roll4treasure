@@ -19,3 +19,7 @@ test:
 precommit:
 	pre-commit install
 	pre-commit run --all-files
+
+check-health
+	curl -sS http://127.0.0.1:8000/healthz && echo
+        curl -sS http://127.0.0.1:8000/readyz && echo
