@@ -1,25 +1,31 @@
 # app/features/treasure/routers.py
-from datetime import datetime, timezone
-from fastapi import APIRouter, Request, Form, HTTPException, Query, BackgroundTasks
-from fastapi.responses import JSONResponse, RedirectResponse
+import re
+from datetime import UTC, datetime
+from typing import Any
+
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
-from typing import Optional, Dict, List, Any
-import random, re, os
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.core.templates import templates
-
 from app.features.treasure.models import (
-    Session, Player, PileState, Card,
-    current_player, shuffle_bottom_random, roll_d6,
+    Card,
+    PileState,
+    Player,
+    Session,
+    current_player,
+    roll_d6,
+    shuffle_bottom_random,
 )
+from app.features.treasure.scryfall import download_small, fetch_card_meta_by_name
 from app.features.treasure.service import build_pile_from_source
 from app.features.treasure.store import (
     create_session as db_create,
+    get_asset,
     load_session as db_load,
     mutate_session as db_mutate,
-    get_asset, upsert_asset,
+    upsert_asset,
 )
-from app.features.treasure.scryfall import fetch_card_meta_by_name, download_small
 
 router = APIRouter()
 
@@ -51,8 +57,9 @@ def _norm_sid(raw: str) -> str:
 
 # ---------- Precache orchestration ----------
 
-async def _precache_card_images(sid: str, names: List[str]) -> None:
-    name_meta: Dict[str, Dict] = {}
+
+async def _precache_card_images(sid: str, names: list[str]) -> None:
+    name_meta: dict[str, dict] = {}
     for nm in dict.fromkeys([n for n in names if n]):
         meta = await run_in_threadpool(fetch_card_meta_by_name, nm)
         if not meta or not meta.get("oracle_id"):
@@ -67,9 +74,7 @@ async def _precache_card_images(sid: str, names: List[str]) -> None:
         local_path, etag, last_modified = await run_in_threadpool(
             download_small, oid, meta["small_url"]
         )
-        await upsert_asset(
-            oid, meta["name"], meta["small_url"], local_path, etag, last_modified
-        )
+        await upsert_asset(oid, meta["name"], meta["small_url"], local_path, etag, last_modified)
 
     async def do_mutate(s: Session):
         for c in s.pile.cards:
@@ -95,22 +100,25 @@ async def _bg_precache_session(sid: str) -> None:
         async def mut(s2: Session):
             s2.precache_total = total
             s2.precache_done = done_cnt
+
         await db_mutate(sid, mut)
 
     await set_progress(0)
     uniq = list(dict.fromkeys(names))
     for chunk_start in range(0, len(uniq), 25):
-        chunk = uniq[chunk_start:chunk_start + 25]
+        chunk = uniq[chunk_start : chunk_start + 25]
         await _precache_card_images(sid, chunk)
         done = min(len(uniq), chunk_start + len(chunk))
         await set_progress(done)
 
     async def finish(s2: Session):
         s2.is_ready = True
+
     await db_mutate(sid, finish)
 
 
 # ---------- Routes ----------
+
 
 @router.get("")
 async def treasure_home(request: Request):
@@ -121,7 +129,7 @@ async def treasure_home(request: Request):
 async def treasure_create(request: Request, background: BackgroundTasks):
     form = await request.form() if request.method == "POST" else {}
 
-    def first(key: str, default: Optional[str] = None) -> Optional[str]:
+    def first(key: str, default: str | None = None) -> str | None:
         v = form.get(key) or request.query_params.get(key) or default
         if isinstance(v, str):
             v = v.strip()
@@ -132,7 +140,7 @@ async def treasure_create(request: Request, background: BackgroundTasks):
     players = first("players")
     seed_raw = first("seed")
 
-    seed: Optional[int] = None
+    seed: int | None = None
     if seed_raw not in (None, ""):
         try:
             seed = int(seed_raw)
@@ -185,7 +193,9 @@ async def treasure_open(request: Request, sid: str = Query(..., description="Ses
     if not s:
         raise HTTPException(404, "session not found")
     if not s.is_ready:
-        return templates.TemplateResponse("treasure/precache.html", {"request": request, "sid": code})
+        return templates.TemplateResponse(
+            "treasure/precache.html", {"request": request, "sid": code}
+        )
     return RedirectResponse(url=f"/treasure/{code}")
 
 
@@ -198,13 +208,13 @@ async def treasure_state(sid: str):
 
 
 @router.post("/{sid}/roll")
-async def treasure_roll(sid: str, player_id: Optional[str] = Form(None)):
+async def treasure_roll(sid: str, player_id: str | None = Form(None)):
     """
     Roll flow:
     - Roll 1–5: draw N from TOP; keep first; shuffle rest to BOTTOM; **do not advance**.
     - Roll 6: reveal TOP 3 (or fewer if deck small); wait for /choose; **do not advance**.
     """
-    result_payload: Dict[str, Any] = {}
+    result_payload: dict[str, Any] = {}
 
     def do_roll(s: Session):
         _ensure_open(s)
@@ -212,7 +222,11 @@ async def treasure_roll(sid: str, player_id: Optional[str] = Form(None)):
         if getattr(s, "pending_choices", None):
             raise HTTPException(400, "awaiting choice from previous roll")
 
-        p = current_player(s) if not player_id else next((pl for pl in s.players if pl.id == player_id), None)
+        p = (
+            current_player(s)
+            if not player_id
+            else next((pl for pl in s.players if pl.id == player_id), None)
+        )
         if not p:
             raise HTTPException(404, "player not found")
         if p.dug_this_turn:
@@ -222,7 +236,7 @@ async def treasure_roll(sid: str, player_id: Optional[str] = Form(None)):
         p.digs_this_game += 1
 
         n = roll_d6()
-        drawn: List[Card] = []
+        drawn: list[Card] = []
 
         if n == 6:
             cnt = min(3, len(s.pile.cards))
@@ -232,10 +246,12 @@ async def treasure_roll(sid: str, player_id: Optional[str] = Form(None)):
                 s.pending_choices = list(drawn)
                 s.pending_player_id = p.id
                 _append_log(s, f"{p.name} rolled 6 — choose one of the top {len(drawn)}.")
-                result_payload.update({
-                    "mode": "choose",
-                    "choices": [c.model_dump() for c in drawn],
-                })
+                result_payload.update(
+                    {
+                        "mode": "choose",
+                        "choices": [c.model_dump() for c in drawn],
+                    }
+                )
                 return
             else:
                 _append_log(s, f"{p.name} rolled 6 but the pile was empty.")
@@ -257,11 +273,13 @@ async def treasure_roll(sid: str, player_id: Optional[str] = Form(None)):
             _append_log(s, f"{p.name} dug {n} and found **{kept.name}**.")
             revealed_payload = [dict(kept.model_dump(), kept=True)]
             revealed_payload += [dict(c.model_dump(), kept=False) for c in rest]
-            result_payload.update({
-                "mode": "auto",
-                "received": kept.model_dump(),
-                "revealed": revealed_payload,
-            })
+            result_payload.update(
+                {
+                    "mode": "auto",
+                    "received": kept.model_dump(),
+                    "revealed": revealed_payload,
+                }
+            )
         else:
             _append_log(s, f"{p.name} dug {n} but found nothing.")
             result_payload.update({"mode": "auto", "revealed": []})
@@ -274,8 +292,8 @@ async def treasure_roll(sid: str, player_id: Optional[str] = Form(None)):
 
 
 @router.post("/{sid}/choose")
-async def treasure_choose(sid: str, player_id: Optional[str] = Form(None), card_id: str = Form(...)):
-    result_payload: Dict[str, Any] = {}
+async def treasure_choose(sid: str, player_id: str | None = Form(None), card_id: str = Form(...)):
+    result_payload: dict[str, Any] = {}
 
     def do_choose(s: Session):
         _ensure_open(s)
@@ -284,7 +302,11 @@ async def treasure_choose(sid: str, player_id: Optional[str] = Form(None), card_
         if not choices:
             raise HTTPException(400, "no pending choices")
 
-        p = current_player(s) if not player_id else next((pl for pl in s.players if pl.id == player_id), None)
+        p = (
+            current_player(s)
+            if not player_id
+            else next((pl for pl in s.players if pl.id == player_id), None)
+        )
         if not p:
             raise HTTPException(404, "player not found")
         if s.pending_player_id and s.pending_player_id != p.id:
@@ -305,11 +327,13 @@ async def treasure_choose(sid: str, player_id: Optional[str] = Form(None), card_
         s.pending_player_id = None
 
         _append_log(s, f"{p.name} chooses **{chosen.name}**.")
-        result_payload.update({
-            "ok": True,
-            "received": chosen.model_dump(),
-            "revealed": [c.model_dump() for c in rest],
-        })
+        result_payload.update(
+            {
+                "ok": True,
+                "received": chosen.model_dump(),
+                "revealed": [c.model_dump() for c in rest],
+            }
+        )
         # NOTE: Do NOT advance; pass must be explicit.
 
     await db_mutate(_norm_sid(sid), do_choose)
@@ -319,7 +343,7 @@ async def treasure_choose(sid: str, player_id: Optional[str] = Form(None), card_
 
 @router.post("/{sid}/pass")
 async def treasure_pass(sid: str):
-    result_payload: Dict[str, object] = {}
+    result_payload: dict[str, object] = {}
 
     def do_pass(s: Session):
         _ensure_open(s)
@@ -342,7 +366,9 @@ async def treasure_open_direct(request: Request, sid: str):
     if not s:
         raise HTTPException(404, "session not found")
     if not s.is_ready:
-        return templates.TemplateResponse("treasure/precache.html", {"request": request, "sid": code})
+        return templates.TemplateResponse(
+            "treasure/precache.html", {"request": request, "sid": code}
+        )
     return templates.TemplateResponse("treasure/session.html", {"request": request, "sid": code})
 
 
@@ -353,7 +379,7 @@ async def treasure_end(sid: str):
     def do_close(s: Session):
         if getattr(s, "closed_at", None):
             return
-        s.closed_at = datetime.now(timezone.utc).isoformat()
+        s.closed_at = datetime.now(UTC).isoformat()
         if getattr(s, "pending_choices", None):
             s.pending_choices = []
             s.pending_player_id = None

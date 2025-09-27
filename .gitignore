@@ -1,50 +1,61 @@
 # Python bytecode
 __pycache__/
 *.py[cod]
-*$py.class
+*.class
 
-# Virtual environments
+# Virtual environments / Python version managers
+.venv/
 venv/
 .env
+.env.*
+.python-version
+.pdm-python
 
 # Build & packaging
+build/
+dist/
+.eggs/
 *.egg-info/
 *.egg
-dist/
-build/
-.eggs/
-
-# Logs & databases
-*.log
-*.sqlite3
-*.sqlite3-journal
-
-# Unit test / coverage
-.coverage
-.coverage.*
-.pytest_cache/
-htmlcov/
-.cache/
-.nox/
-.tox/
-
-# Jupyter
-.ipynb_checkpoints
+wheelhouse/
 
 # C extensions
 *.so
 
-# Runtime caches
-img-cache/
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyre/
+.pytest_cache/
+.nox/
+.tox/
+.cache/
 
-# OS / editor junk
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# IDE / OS junk
 .DS_Store
 .idea/
 .vscode/
-.env
-venv/
-__pycache__/
-*.py[cod]
-.img-cache/
+
+# Runtime artifacts
 img-cache/
-.DS_Store
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+*.log
+
+# Archives / dumps
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Misc
+.ipynb_checkpoints
+__pypackages__/

@@ -1,0 +1,9 @@
+pytest
+httpx
+anyio
+ruff
+mypy
+pre-commit
+requests
+fastapi
+uvicorn

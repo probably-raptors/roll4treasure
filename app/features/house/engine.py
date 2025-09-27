@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import Dict, List, Tuple
-from random import Random
+
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from collections import defaultdict
+from random import Random
 
-from .models import SimRequest, SimResult, IterLogEntry, BoardState, now_iso
+from .models import BoardState, IterLogEntry, SimRequest, SimResult, now_iso
+
 
 @dataclass
 class ArtifactPool:
@@ -17,28 +18,39 @@ class ArtifactPool:
     other_tapped: int = 0
 
     def untapped_count(self) -> int:
-        return (self.robots - self.robots_tapped) + (self.treasures - self.treasures_tapped) + (self.other - self.other_tapped)
+        return (
+            (self.robots - self.robots_tapped)
+            + (self.treasures - self.treasures_tapped)
+            + (self.other - self.other_tapped)
+        )
 
     def tap_one(self, kind: str) -> bool:
         if kind == "robot" and self.robots - self.robots_tapped > 0:
-            self.robots_tapped += 1; return True
+            self.robots_tapped += 1
+            return True
         if kind == "treasure" and self.treasures - self.treasures_tapped > 0:
-            self.treasures_tapped += 1; return True
+            self.treasures_tapped += 1
+            return True
         if kind == "other" and self.other - self.other_tapped > 0:
-            self.other_tapped += 1; return True
+            self.other_tapped += 1
+            return True
         return False
 
     def untap_one(self, kind: str) -> None:
-        if kind == "robot" and self.robots_tapped > 0: self.robots_tapped -= 1
-        elif kind == "treasure" and self.treasures_tapped > 0: self.treasures_tapped -= 1
-        elif kind == "other" and self.other_tapped > 0: self.other_tapped -= 1
+        if kind == "robot" and self.robots_tapped > 0:
+            self.robots_tapped -= 1
+        elif kind == "treasure" and self.treasures_tapped > 0:
+            self.treasures_tapped -= 1
+        elif kind == "other" and self.other_tapped > 0:
+            self.other_tapped -= 1
+
 
 def choose_tap_targets(pool: ArtifactPool) -> list[str]:
     """Pick exactly two tap kinds while preserving Robots:
-       - Tap 'other' first (if available)
-       - Prefer tapping 'treasure' over 'robot'
-       - Only tap robots if unavoidable
-       - Return [] if you can't pay the full cost
+    - Tap 'other' first (if available)
+    - Prefer tapping 'treasure' over 'robot'
+    - Only tap robots if unavoidable
+    - Return [] if you can't pay the full cost
     """
     unt_other = pool.other - pool.other_tapped
     unt_robot = pool.robots - pool.robots_tapped
@@ -75,6 +87,7 @@ def choose_tap_targets(pool: ArtifactPool) -> list[str]:
 
     return picks if len(picks) == 2 else []
 
+
 def simulate(req: SimRequest) -> SimResult:
     used_seed = req.seed if req.seed is not None else int(datetime.now().timestamp() * 1_000_000)
     rng = Random(used_seed)
@@ -87,7 +100,7 @@ def simulate(req: SimRequest) -> SimResult:
     hist = defaultdict(int)
 
     iterations = 0
-    log: List[IterLogEntry] = []
+    log: list[IterLogEntry] = []
 
     while iterations < req.max_iters:
         # Step 1: Activate Puzzlebox (tap it, +1 mana)
@@ -121,17 +134,20 @@ def simulate(req: SimRequest) -> SimResult:
             reason = f"Reached PB Mana ≥ {req.stop_mana_ge}"
 
         if reason:
-            log.append(IterLogEntry(
-                iter=iterations + 1, roll=r,
-                created={"robots": created_robots, "treasures": created_treasures},
-                tapped_for_clock=[],
-                note=reason
-            ))
+            log.append(
+                IterLogEntry(
+                    iter=iterations + 1,
+                    roll=r,
+                    created={"robots": created_robots, "treasures": created_treasures},
+                    tapped_for_clock=[],
+                    note=reason,
+                )
+            )
             iterations += 1
             break
 
         # Step 3: Try to untap Puzzlebox via Clock of Omens
-        tapped_for_clock: List[str] = []
+        tapped_for_clock: list[str] = []
         note = ""
         if pool.untapped_count() >= 2:
             targets = choose_tap_targets(pool)
@@ -145,11 +161,15 @@ def simulate(req: SimRequest) -> SimResult:
         else:
             note = "Insufficient untapped artifacts to pay Clock."
 
-        log.append(IterLogEntry(
-            iter=iterations + 1, roll=r,
-            created={"robots": created_robots, "treasures": created_treasures},
-            tapped_for_clock=tapped_for_clock, note=note
-        ))
+        log.append(
+            IterLogEntry(
+                iter=iterations + 1,
+                roll=r,
+                created={"robots": created_robots, "treasures": created_treasures},
+                tapped_for_clock=tapped_for_clock,
+                note=note,
+            )
+        )
         iterations += 1
 
         if pbox_tapped:

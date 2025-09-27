@@ -1,7 +1,9 @@
 from fastapi import APIRouter
-from app.web.home import router as home_router
-from app.features.treasure.routers import router as treasure_router
+
 from app.features.house.routers import router as house_router
+from app.features.treasure.routers import router as treasure_router
+from app.web.home import router as home_router
+
 
 def make_root_router() -> APIRouter:
     root = APIRouter()
