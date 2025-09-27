@@ -23,8 +23,6 @@ def test_readyz_shape():
 
 
 def test_readyz_degraded(monkeypatch):
-    # Force db_ready() to return False without touching real DB
-
     async def fake_db_ready():
         return False
 
