@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import create_app
+from app.web import health
 
 app = create_app()
 client = TestClient(app)
@@ -19,3 +20,15 @@ def test_readyz_shape():
     assert "status" in body
     assert "cache_writable" in body
     assert "db_ready" in body
+
+
+def test_readyz_degraded(monkeypatch):
+    # Force db_ready() to return False without touching real DB
+
+    async def fake_db_ready():
+        return False
+
+    monkeypatch.setattr(health, "db_ready", fake_db_ready, raising=True)
+    r = client.get("/readyz")
+    assert r.status_code == 200
+    assert r.json()["status"] == "degraded"
