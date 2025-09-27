@@ -53,9 +53,8 @@ async def init_pool() -> None:
 
 async def ensure_schema() -> None:
     assert _pool is not None
-    async with _pool.connection() as ac:
-        async with ac.transaction():
-            await ac.execute("""
+    async with _pool.connection() as ac, ac.transaction():
+        await ac.execute("""
                 CREATE TABLE IF NOT EXISTS card_assets (
                   oracle_id TEXT PRIMARY KEY,
                   name TEXT,
@@ -80,23 +79,21 @@ async def close_pool() -> None:
 
 async def create_session(s: Session) -> None:
     assert _pool is not None, "Pool not initialized"
-    async with _pool.connection() as ac:
-        async with ac.transaction():
-            await ac.execute(
-                "INSERT INTO sessions (id, data) VALUES (%s, %s)",
-                (s.id, Json(s.model_dump())),
-            )
+    async with _pool.connection() as ac, ac.transaction():
+        await ac.execute(
+            "INSERT INTO sessions (id, data) VALUES (%s, %s)",
+            (s.id, Json(s.model_dump())),
+        )
 
 
 async def load_session(sid: str) -> Session | None:
     assert _pool is not None, "Pool not initialized"
-    async with _pool.connection() as ac:
-        async with ac.transaction():
-            cur = await ac.execute("SELECT data FROM sessions WHERE id=%s", (sid,))
-            row = await cur.fetchone()
-            if not row:
-                return None
-            return Session.model_validate(_as_dict(row[0]))
+    async with _pool.connection() as ac, ac.transaction():
+        cur = await ac.execute("SELECT data FROM sessions WHERE id=%s", (sid,))
+        row = await cur.fetchone()
+        if not row:
+            return None
+        return Session.model_validate(_as_dict(row[0]))
 
 
 async def _load_for_update(ac: psycopg.AsyncConnection, sid: str) -> Session:
@@ -120,14 +117,13 @@ async def mutate_session(
 ) -> Session:
     """Serialize mutations per session id using row-level lock."""
     assert _pool is not None, "Pool not initialized"
-    async with _pool.connection() as ac:
-        async with ac.transaction():
-            s = await _load_for_update(ac, sid)
-            res = mutator(s)
-            if asyncio.iscoroutine(res):
-                await res
-            await _save(ac, s)
-            return s
+    async with _pool.connection() as ac, ac.transaction():
+        s = await _load_for_update(ac, sid)
+        res = mutator(s)
+        if asyncio.iscoroutine(res):
+            await res
+        await _save(ac, s)
+        return s
 
 
 # ---------- card asset helpers ----------
@@ -194,10 +190,9 @@ async def cleanup_expired_sessions_once(ttl_hours: int = 72) -> int:
     """
     assert _pool is not None
     to_interval = f"{int(ttl_hours)} hours"
-    async with _pool.connection() as ac:
-        async with ac.transaction():
-            cur = await ac.execute(
-                """
+    async with _pool.connection() as ac, ac.transaction():
+        cur = await ac.execute(
+            """
                 WITH base AS (
                   SELECT id
                   FROM sessions
@@ -207,13 +202,13 @@ async def cleanup_expired_sessions_once(ttl_hours: int = 72) -> int:
                 WHERE s.id = b.id
                 RETURNING s.id
                 """,
-                (to_interval,),
-            )
-            rows = await cur.fetchall()
-            deleted = len(rows or [])
-            if deleted:
-                log.info("TTL cleanup removed %d session(s)", deleted)
-            return deleted
+            (to_interval,),
+        )
+        rows = await cur.fetchall()
+        deleted = len(rows or [])
+        if deleted:
+            log.info("TTL cleanup removed %d session(s)", deleted)
+        return deleted
 
 
 async def periodic_cleanup(
