@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -25,13 +24,6 @@ def _as_dict(val: Any) -> dict:
     if isinstance(val, str):
         return json.loads(val)
     return json.loads(json.dumps(val))
-
-
-def _dsn() -> str:
-    dsn = os.getenv("DATABASE_URL", "").strip()
-    if not dsn:
-        raise RuntimeError("DATABASE_URL is not set")
-    return dsn
 
 
 # ---------- schema management ----------
