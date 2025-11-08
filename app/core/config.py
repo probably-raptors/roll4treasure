@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     ENV: EnvName = Field(default="development", description="Runtime environment")
     DEBUG: bool = Field(default=False, description="Enable debug features")
     LOG_LEVEL: LogLevel = Field(default="INFO", description="Root logger level")
+    APP_NAME: str = Field(default="Roll4Treasure", description="Application name")
+    TEMPLATE_DIR: str = Field(default="app/templates", description="Jinja templates directory")
+    STATIC_DIR: str = Field(default="app/static", description="Static files directory")
 
     # ---- Web server ----
     HOST: str = Field(default="127.0.0.1", description="Uvicorn bind address")
@@ -41,8 +44,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore",  # ignore unknown env vars
-        case_sensitive=False,  # allow lowercase env names too
+        extra="ignore",
+        case_sensitive=False,
     )
 
 
@@ -51,9 +54,6 @@ settings = Settings()
 
 
 def configure_root_logger() -> None:
-    """
-    Apply LOG_LEVEL from settings to the root logger (if not already set).
-    Safe to call multiple times.
-    """
+    """Apply LOG_LEVEL from settings to the root logger (idempotent)."""
     level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
     logging.getLogger().setLevel(level)
