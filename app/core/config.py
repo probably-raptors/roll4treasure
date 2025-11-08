@@ -1,38 +1,59 @@
-# /opt/r4t/app/core/config.py
+from __future__ import annotations
 
-try:
-    # Pydantic v2+
-    from pydantic import Field
-    from pydantic_settings import BaseSettings, SettingsConfigDict
-except Exception:
-    # Fallback for Pydantic v1 (not expected here but safe)
-    from pydantic import BaseSettings  # type: ignore
+import logging
+from typing import Literal
 
-    SettingsConfigDict = dict  # type: ignore
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-    def Field(**kwargs):  # type: ignore
-        return None
+EnvName = Literal["development", "staging", "production", "test"]
+LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 class Settings(BaseSettings):
-    # Core app defaults
-    DEBUG: bool = True
-    APP_NAME: str = "Roll4Treasure"
-    TEMPLATE_DIR: str = "app/templates"
-    STATIC_DIR: str = "app/static"
+    """
+    Centralized application configuration (Pydantic v2 + pydantic-settings).
 
-    # Env-provided knobs (these match keys in .env)
-    MOXFIELD_COOKIE: str | None = Field(default=None, alias="moxfield_cookie")
-    DATABASE_URL: str | None = Field(default=None, alias="database_url")
-    IMAGE_CACHE_DIR: str = Field(default="/opt/r4t/img-cache", alias="image_cache_dir")
+    Loads values from:
+      1) Environment variables
+      2) `.env` file in project root
+    """
 
-    # Config for Pydantic v2
+    # ---- App basics ----
+    ENV: EnvName = Field(default="development", description="Runtime environment")
+    DEBUG: bool = Field(default=False, description="Enable debug features")
+    LOG_LEVEL: LogLevel = Field(default="INFO", description="Root logger level")
+
+    # ---- Web server ----
+    HOST: str = Field(default="127.0.0.1", description="Uvicorn bind address")
+    PORT: int = Field(default=8000, description="Uvicorn bind port")
+
+    # ---- Database ----
+    DATABASE_URL: str = Field(default="", description="Postgres DSN")
+    DB_MIN_SIZE: int = Field(default=1, ge=1, description="Pool minimum size")
+    DB_MAX_SIZE: int = Field(default=5, ge=1, description="Pool maximum size")
+    DB_CONNECT_TIMEOUT: float = Field(default=5.0, ge=0.1, description="Connect timeout seconds")
+
+    # ---- Caching / files ----
+    IMAGE_CACHE_DIR: str = Field(default="img-cache", description="Local cache folder")
+
+    # ---- Pydantic settings meta ----
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore",  # ignore unexpected keys in .env
-        case_sensitive=False,  # lowercase keys can populate uppercase fields
-        populate_by_name=True,  # allow field names as well as aliases
+        env_file_encoding="utf-8",
+        extra="ignore",  # ignore unknown env vars
+        case_sensitive=False,  # allow lowercase env names too
     )
 
 
+# Eager singleton used throughout the app
 settings = Settings()
+
+
+def configure_root_logger() -> None:
+    """
+    Apply LOG_LEVEL from settings to the root logger (if not already set).
+    Safe to call multiple times.
+    """
+    level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+    logging.getLogger().setLevel(level)

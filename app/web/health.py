@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import os
 import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter
 
-from app.db.pool import check_ready as db_ready  # new import
+from app.core.config import settings
+from app.db.pool import check_ready as db_ready
 
 router = APIRouter(tags=["health"])
 
@@ -18,14 +18,8 @@ async def healthz() -> dict[str, str]:
 
 
 def _is_cache_writable() -> bool:
-    """Check cache dir writability by creating a temp file and removing it.
-
-    Cache dir priority:
-      1) IMAGE_CACHE_DIR env var
-      2) ./img-cache fallback
-    """
-    cache_dir = os.environ.get("IMAGE_CACHE_DIR", "img-cache")
-    p = Path(cache_dir)
+    """Check cache dir writability by creating a temp file and removing it."""
+    p = Path(settings.IMAGE_CACHE_DIR)
     try:
         p.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(dir=p, prefix="readyz-", delete=True):

@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.core.config import settings
+from app.core.config import configure_root_logger, settings
 from app.db.pool import close_pool, init_pool
 from app.web.router import make_root_router
 
@@ -62,6 +62,7 @@ def create_app() -> FastAPI:
 
     # Logging
     setup_json_logging()
+    configure_root_logger()
     app.add_middleware(RequestIdMiddleware)
 
     # Static
