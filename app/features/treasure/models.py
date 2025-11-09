@@ -33,6 +33,7 @@ class Player(BaseModel):
 
 class Session(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
+    seed: int | None = None
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     players: list[Player]
     turn_idx: int = 0
