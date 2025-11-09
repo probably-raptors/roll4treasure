@@ -1,18 +1,25 @@
 # /opt/r4t/app/main.py
-import contextlib
+from __future__ import annotations
+
+import asyncio
 import json
 import logging
 import time
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import configure_root_logger, settings
 from app.db.pool import close_pool, init_pool
+from app.features.treasure.store import periodic_cleanup
 from app.web.router import make_root_router
+
+# -------- JSON logging (preserve existing behavior) --------
 
 
 class JsonFormatter(logging.Formatter):
@@ -37,8 +44,11 @@ def setup_json_logging() -> None:
     root.addHandler(handler)
 
 
+# -------- Middleware (preserve header casing) --------
+
+
 class RequestIdMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
+    async def dispatch(self, request: Request, call_next):
         req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         start = time.perf_counter()
         request.state.request_id = req_id  # type: ignore[attr-defined]
@@ -57,12 +67,49 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(title=settings.APP_NAME)
+# -------- Lifespan: startup/shutdown orchestration --------
 
-    # Logging
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Logging first, then root logger level from settings
     setup_json_logging()
     configure_root_logger()
+
+    # DB pool
+    await init_pool()
+
+    # Periodic TTL cleanup (sessions)
+    app.state.cleanup_stop = asyncio.Event()
+    app.state.cleanup_task = asyncio.create_task(
+        periodic_cleanup(ttl_hours=72, interval_seconds=900, stop_event=app.state.cleanup_stop)
+    )
+
+    try:
+        yield
+    finally:
+        # Stop periodic task gracefully
+        stop = getattr(app.state, "cleanup_stop", None)
+        task = getattr(app.state, "cleanup_task", None)
+        try:
+            if stop:
+                stop.set()
+            if task:
+                await task
+        except Exception:
+            logging.getLogger("r4t.app").exception("Error stopping periodic cleanup task")
+
+        # Close DB pool
+        try:
+            await close_pool()
+        except Exception:
+            logging.getLogger("r4t.app").exception("Error closing DB pool")
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
+
+    # Middleware
     app.add_middleware(RequestIdMiddleware)
 
     # Static
@@ -70,19 +117,6 @@ def create_app() -> FastAPI:
 
     # Routers
     app.include_router(make_root_router())
-
-    # ---- lifecycle ----
-    @app.on_event("startup")
-    async def _startup() -> None:
-        await init_pool()
-
-    @app.on_event("shutdown")
-    async def _shutdown() -> None:
-        task = getattr(app.state, "_cleanup_task", None)
-        if task:
-            with contextlib.suppress(Exception):
-                await task
-        await close_pool()
 
     return app
 
