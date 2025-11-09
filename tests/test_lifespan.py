@@ -10,7 +10,7 @@ def test_request_id_header_and_boot():
     app = create_app()
     with TestClient(app) as client:
         r = client.get("/healthz")
-        assert r.status_code in (200, 404)  # route exists in your app; expect 200
-        # Request ID header set by middleware
-        assert "x-request-id" in r.headers
-        assert r.headers["x-request-id"]
+        # If /healthz is guaranteed, use == 200; otherwise allow 404.
+        assert r.status_code in (200, 404)
+        assert "X-Request-ID" in r.headers
+        assert r.headers["X-Request-ID"]
