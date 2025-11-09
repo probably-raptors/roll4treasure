@@ -19,7 +19,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")  # harmless if missing perms
 
     op.create_table(
         "sessions",
