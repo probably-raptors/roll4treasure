@@ -131,9 +131,9 @@ async def treasure_create(request: Request, background: BackgroundTasks):
 
     def first(key: str, default: str | None = None) -> str | None:
         v = form.get(key) or request.query_params.get(key) or default
-        if isinstance(v, str):
-            v = v.strip()
-        return v
+        if not isinstance(v, str):
+            return default
+        return v.strip()
 
     deck_url = first("deck_url")
     raw_list = first("raw_list")

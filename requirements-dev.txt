@@ -7,3 +7,5 @@ pre-commit
 requests
 fastapi
 uvicorn
+SQLAlchemy>=2.0
+alembic>=1.13
