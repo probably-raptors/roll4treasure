@@ -1,17 +1,375 @@
-/* ===========================
-   Treasure Cruise session styles
-   =========================== */
+/* ============================================
+   Treasure Cruise — Feature-Specific Styles
+   ============================================ */
 
-/* Page tweaks only; shared components (choice/log/buttons) are in main.css */
-#tc-root h1{ margin-top:6px; }
-#tc-players{ margin:6px 0 10px; }
-#tc-players .chip{ font-weight:700; }
-#tc-players .chip.chip--active{ box-shadow:0 0 0 1px rgba(255,255,255,.14) inset; }
+/* Page wrappers */
+.tc-setup,
+.tc-precache,
+.tc-session {
+  margin-top: 16px;
+}
 
-#tc-logbox{ max-height:320px; }
+/* Small helper */
+.tc-help { font-size: 14px; margin-top: 4px; }
 
-/* Image sections */
-#tc-reveal .reveal-grid{ margin-top:8px; }
-#tc-inventory .tc-card{ background:#0a0a0a; }
+/* ------------------------------
+   Setup / Index page
+   ------------------------------ */
 
-/* Session action bar uses .sticky-bottom from main.css */
+.tc-setup-header h1 { margin-bottom: 4px; }
+
+.tc-setup-grid {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 720px) {
+  .tc-setup-grid {
+    grid-template-columns: 2fr 1.4fr;
+    align-items: flex-start;
+  }
+}
+
+.tc-alert {
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255,120,120,0.55);
+  background: rgba(80,16,16,0.9);
+  padding: 10px 12px;
+  color: #ffecec;
+  font-size: 14px;
+}
+
+.tc-divider {
+  text-align: center;
+  font-size: 14px;
+}
+
+.tc-actions { margin-top: 8px; display: flex; justify-content: flex-end; }
+
+.tc-restore-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.tc-restore-input { flex: 1 1 220px; }
+.tc-restore-actions { flex: 0 0 auto; }
+.tc-restore-actions .btn { min-width: 120px; }
+
+/* ------------------------------
+   Precache page
+   ------------------------------ */
+
+.tc-precache-card {
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.pc-bar {
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-elev-1);
+  overflow: hidden;
+  margin-top: 8px;
+}
+.pc-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 180ms ease-out;
+}
+
+.pc-num { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.pc-actions { margin-top: 10px; display: none; }
+.pc-actions.show { display: block; }
+
+/* ------------------------------
+   Session page
+   ------------------------------ */
+
+.tc-session-header { display: grid; gap: 10px; }
+
+.tc-session-top {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.tc-session-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.tc-session-players { display: flex; align-items: center; }
+
+.tc-session-title h1 { margin: 6px 0 2px; }
+#tc-turnlabel { margin: 0; }
+
+.tc-section { margin-top: 8px; }
+
+.tc-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.tc-section-title { margin: 0; }
+.tc-section-caption {
+  margin: 0;
+  font-size: 12px;
+}
+
+/* ------------------------------
+   Card grids + tiles
+   ------------------------------ */
+
+.tc-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+@media (min-width: 480px) {
+  .tc-cards { grid-template-columns: repeat(4, 1fr); }
+}
+
+.tc-card {
+  position: relative;
+  background: #0a0a0a;
+  border: 1px solid #1b1b1b;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.tc-card-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tc-card img,
+.card-img {
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-1);
+  display: block;
+}
+
+.tc-card-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tc-card-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px dashed var(--border-soft);
+  background: var(--bg-elev-1);
+  padding: 10px;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* ------------------------------
+   Choice mode (rolled a 6)
+   ------------------------------ */
+
+#tc-deck.tc-choice {
+  border: 2px dashed #91f29f;
+  background: rgba(30,70,40,0.25);
+  box-shadow: 0 0 0 2px #2f7a49 inset;
+}
+
+.tc-card.clickable img {
+  outline: 3px solid #91f29f;
+  cursor: pointer;
+  animation: tcPulse 1200ms ease-in-out infinite;
+}
+.tc-card.clickable:hover img,
+.tc-card.clickable:focus-within img {
+  outline-color: #c9ffcf;
+  transform: translateY(-1px);
+  transition: transform 120ms ease;
+}
+
+.tc-card.kept img {
+  outline: 3px solid #ffd166;
+  box-shadow: 0 0 0 3px rgba(255,209,102,.25);
+}
+.tc-card.kept::after {
+  content: "Kept";
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0,0,0,.7);
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* Choice pulse animation */
+@keyframes tcPulse {
+  0% { box-shadow: 0 0 0 0 rgba(145,242,159,.55); }
+  70% { box-shadow: 0 0 0 12px rgba(145,242,159,0); }
+  100% { box-shadow: 0 0 0 0 rgba(145,242,159,0); }
+}
+
+/* ------------------------------
+   Player chip slider highlight
+   ------------------------------ */
+
+#tc-players {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+}
+
+/* Sliding highlight behind the active chip */
+#tc-player-slider {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-radius: 999px;
+  background: #163a2a;
+  border: 1px solid #2f7a49;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25) inset;
+  transition:
+    left 180ms ease,
+    top 180ms ease,
+    width 180ms ease,
+    height 180ms ease,
+    opacity 120ms ease;
+  opacity: 0;
+  z-index: 0;
+}
+
+/* Chips inside the Treasure player bar override the global .chip */
+#tc-players .chip {
+  position: relative;
+  z-index: 1;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #2c3d3a;
+  background: transparent;           /* key: no fill, slider shows behind */
+  color: #cfe4de;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+
+/* Emphasis on active chip */
+#tc-players .chip.chip--active {
+  color: #e8fff6;
+}
+
+/* ------------------------------
+   Flash overlay for chosen card
+   ------------------------------ */
+
+#tc-flash {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+}
+
+#tc-flash.show {
+  animation: tcFlashFade 1200ms ease forwards;
+}
+
+#tc-flash .card {
+  border-radius: 12px;
+  overflow: hidden;
+  transform: scale(.86);
+  filter: drop-shadow(0 18px 48px rgba(0,0,0,.55));
+  animation: tcFlashPop 1200ms cubic-bezier(.2,.9,.2,1) forwards;
+}
+
+#tc-flash .card img {
+  width: min(42vmin, 420px);
+  height: auto;
+}
+
+/* Flash pop */
+@keyframes tcFlashPop {
+  0%   { transform: scale(.86); box-shadow: 0 0 0 0 rgba(255,214,102,0); }
+  15%  { transform: scale(1.04); }
+  30%  { transform: scale(1.0); box-shadow: 0 0 0 10px rgba(255,214,102,.40); }
+  60%  { box-shadow: 0 0 0 0 rgba(255,214,102,0); }
+  100% { transform: scale(1.0); }
+}
+
+/* Fade */
+@keyframes tcFlashFade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ------------------------------
+   Reveal thumbnails
+   ------------------------------ */
+
+.reveal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+@media (min-width: 560px) {
+  .reveal-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+.thumb-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.thumb {
+  flex: 0 0 auto;
+  width: 96px;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-1);
+}
+
+/* ------------------------------
+   Responsive session layout
+   ------------------------------ */
+
+@media (max-width: 540px) {
+  .tc-session-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tc-restore-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tc-restore-actions .btn {
+    width: 100%;
+  }
+}

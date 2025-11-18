@@ -1,74 +1,116 @@
-<!doctype html>
-<html>
-<head>
-  {% include "_head.html" %}
-  <title>Mr. House's Puzzlebox</title>
-  <link rel="stylesheet" href="/static/css/house.css">
-</head>
-<body>
-  {% include "_nav.html" %}
+{% extends "base.html" %}
 
-  <div id="sticky" class="sticky-top">
-    <div class="row" style="justify-content:space-between;">
-      <div>
-        <span id="s-iters">—</span> iters •
-        <span id="s-robots">R:—</span> •
-        <span id="s-treas">T:—</span> •
-        <span id="s-counters">PB Cntrs:—</span> •
-        <span id="s-mana">Mana:—</span>
-      </div>
-      <button class="btn btn--small" id="copySummaryBtn">Copy</button>
+{% block title %}Mr. House's Puzzlebox{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/house.css">
+{% endblock %}
+
+{% block content %}
+
+<!-- Sticky summary -->
+<div class="house-sticky" id="sticky">
+  <div class="container house-summary-row">
+    <div class="house-summary-metrics">
+      <span id="s-iters" class="k">— iters</span>
+      <span id="s-robots" class="k">R:—</span>
+      <span id="s-treas" class="k">T:—</span>
+      <span id="s-counters" class="k">PB Cntrs:—</span>
+      <span id="s-mana" class="k">Mana:—</span>
     </div>
+
+    <button class="btn btn--small" id="copySummaryBtn" type="button">
+      Copy
+    </button>
   </div>
+</div>
 
-  <div class="container page">
-    <h1>Mr. House's Puzzlebox Simulator</h1>
+<section class="container page stack-16">
 
-    <form id="simForm" method="POST" action="{{ url_for('run_sim') }}" autocomplete="off">
-      <div class="grid">
-        <div>
-          <label for="untapped_other_init">Untapped artifacts (excluding Puzzlebox)</label>
-          <input id="untapped_other_init" name="untapped_other_init" type="number" min="0" value="{{ untapped_other_init }}" />
-          <div class="row" style="margin-top:8px;">
-            <span class="chip" data-plus="2">+2</span>
-            <span class="chip" data-plus="5">+5</span>
-            <span class="chip" data-plus="10">+10</span>
-            <span class="chip" data-set="0">Set 0</span>
-          </div>
+  <h1>Mr. House's Puzzlebox Simulator</h1>
+
+  <form id="simForm"
+        method="POST"
+        action="{{ url_for('run_sim') }}"
+        autocomplete="off"
+        class="card stack-16">
+
+    <div class="grid">
+      <div>
+        <label for="untapped_other_init">
+          Untapped artifacts (excluding Puzzlebox)
+        </label>
+
+        <input id="untapped_other_init"
+               name="untapped_other_init"
+               type="number"
+               min="0"
+               value="{{ untapped_other_init }}">
+
+        <div class="house-form-chips">
+          <span class="chip" data-plus="2">+2</span>
+          <span class="chip" data-plus="5">+5</span>
+          <span class="chip" data-plus="10">+10</span>
+          <span class="chip" data-set="0">Set 0</span>
         </div>
       </div>
+    </div>
 
-      <h2>Stop Conditions</h2>
+    <h2>Stop Conditions</h2>
 
-      <div class="checklist row" style="gap:10px; align-items:center;">
-        <input type="checkbox" id="stop_ge_100" name="stop_when_counters_ge_100" value="1" {{ 'checked' if stop_at_100 else '' }}>
-        <label for="stop_ge_100" style="margin:0;">Stop at PB counters ≥ 100</label>
-      </div>
+    <div class="house-checklist row">
+      <input type="checkbox"
+             id="stop_ge_100"
+             name="stop_when_counters_ge_100"
+             value="1"
+             {{ 'checked' if stop_at_100 else '' }}>
 
-      <label for="stop_treasures_ge">Stop at total Treasures ≥</label>
-      <input id="stop_treasures_ge" name="stop_treasures_ge" type="number" min="0" placeholder="—">
+      <label for="stop_ge_100">Stop at PB counters ≥ 100</label>
+    </div>
 
-      <label for="stop_robots_ge">Stop at total Robots ≥</label>
-      <input id="stop_robots_ge" name="stop_robots_ge" type="number" min="0" placeholder="—">
+    <label for="stop_treasures_ge">Stop at total Treasures ≥</label>
+    <input id="stop_treasures_ge"
+           name="stop_treasures_ge"
+           type="number"
+           min="0"
+           placeholder="—">
 
-      <label for="stop_mana_ge">Stop at PB Mana ≥</label>
-      <input id="stop_mana_ge" name="stop_mana_ge" type="number" min="0" placeholder="—">
+    <label for="stop_robots_ge">Stop at total Robots ≥</label>
+    <input id="stop_robots_ge"
+           name="stop_robots_ge"
+           type="number"
+           min="0"
+           placeholder="—">
 
-      <label for="seed">Seed (optional)</label>
-      <input id="seed" name="seed" type="number" value="{{ seed }}" />
+    <label for="stop_mana_ge">Stop at PB Mana ≥</label>
+    <input id="stop_mana_ge"
+           name="stop_mana_ge"
+           type="number"
+           min="0"
+           placeholder="—">
 
-      <div class="row" style="margin-top:12px;">
-        <button id="runBtn" class="btn" type="submit">Run Simulation</button>
-        <span id="runNote" class="muted" style="margin-left:8px;"></span>
-      </div>
-    </form>
+    <label for="seed">Seed (optional)</label>
+    <input id="seed"
+           name="seed"
+           type="number"
+           value="{{ seed }}">
 
-    {% if result_json %}
-      <div id="result" data-json='{{ result_json | safe }}'></div>
-    {% endif %}
-  </div>
+    <div class="row">
+      <button id="runBtn" class="btn" type="submit">Run Simulation</button>
+      <span id="runNote" class="muted"></span>
+    </div>
+  </form>
 
-  <script src="/static/js/base.js"></script>
-  <script src="/static/js/house.js"></script>
-</body>
-</html>
+  {% if result_json %}
+  <section class="card stack-16 house-results">
+    <h2>Results</h2>
+    <div id="result" data-json='{{ result_json | safe }}'></div>
+  </section>
+  {% endif %}
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/house.js"></script>
+{% endblock %}
