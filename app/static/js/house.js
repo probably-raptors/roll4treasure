@@ -204,7 +204,7 @@
   }
 
   function updateSticky(res) {
-    sIters.textContent    = `${fmt(res.iterations)}`;
+    sIters.textContent    = `Iter:${fmt(res.iterations)}`;
     sRobots.textContent   = `R:${fmt(res.robots?.total)}`;
     sTreas.textContent    = `T:${fmt(res.treasures?.total)}`;
     sCounters.textContent = `PB Cntrs:${fmt(res.puzzlebox?.counters)}`;

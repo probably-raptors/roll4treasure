@@ -1,119 +1,161 @@
-/* House (Puzzlebox) specific tweaks */
+/* ===============================
+   House: Medium Polish Pass
+   Improves readability, spacing,
+   clarity, and layout stability.
+   =============================== */
 
-/* Keep the checkbox + label perfectly aligned */
-.checklist { display:flex; align-items:center; gap:10px; }
-.checklist input[type="checkbox"] { width: 18px; height: 18px; }
-.checklist label { margin: 0; }
-
-/* Slightly larger “k/v” pairs for readability */
-.k { font-size: 14px; color: var(--fg-dim); letter-spacing: .2px; }
-.v { font-size: 18px; font-weight: 800; margin: 2px 0 8px; }
-
-/* Keep sticky bar from looking empty on first load */
-#sticky .row { min-height: 28px; }
-
-/* Log panel */
-.house-log {
-  max-height: 220px;
-  overflow: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #e9eef0;
-  padding: 6px 8px;
-  background: #0e2020;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.06);
+/* --- Sticky summary bar --- */
+.house-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-soft);
+  padding: 10px 0;
+  backdrop-filter: blur(4px);
 }
-.house-log__line + .house-log__line { margin-top: 4px; }
 
-/* --- Log formatting (collapsed by default; tail always visible) --- */
-.house-log {
-  max-height: 220px;
-  overflow: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  line-height: 1.45;
-  color: #e9eef0;
-  padding: 6px 8px;
-  background: #0e2020;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.06);
+.house-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.house-log--tail {
-  background: #132b1e;
-  border-color: #2f7a49;
+
+.house-summary-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--fg-muted);
+}
+
+.house-summary-metrics .k {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+/* --- Form Polish --- */
+
+/* Prevent chips from overlapping input */
+.house-form-chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+/* Checklist alignment improvement */
+.house-checklist {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+
+.house-checklist label {
+  margin: 0;
   font-weight: 600;
 }
 
-.log-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.log-line + .log-line { margin-top: 4px; }
+/* --- Section headers --- */
+h2 {
+  font-size: 20px;
+  font-weight: 800;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  color: var(--fg);
+}
 
-.log-idx   { color: #9fe8c9; font-weight: 700; }
-.log-roll  { color: #ffd089; font-weight: 600; }
-.log-label { opacity: .8; font-weight: 600; }
+/* --- Results block layout --- */
+#house-results {
+  padding-top: 4px;
+}
 
-.log-delta  { color: #dffbe9; }
-.log-tapped { color: #c4d7e1; font-style: italic; }
-.log-note   { color: #a9b9ff; }
+/* Cards stacking inside results */
+#house-results .card + .card {
+  margin-top: 14px;
+}
 
-.log-sep { opacity: .5; padding: 0 6px; }
-.log-empty { opacity: .7; }
+/* --- Key/value emphasis in results --- */
+#house-results .k {
+  color: var(--fg-muted);
+  font-size: 16px;
+  font-weight: 700;
+}
 
-/* ---- Responsive log readability (mobile-first tweaks) ---- */
-.house-log { word-break: break-word; }
+#house-results .v {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
+}
 
-/* Badge-y index, a bit more visible on all sizes */
+/* --- Histogram polish --- */
+#hist {
+  width: 100%;
+  height: 260px;
+  margin-top: 10px;
+  border-radius: 10px;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  padding: 10px;
+}
+
+/* --- House Log Polish --- */
+.house-log {
+  max-height: 250px;
+  overflow: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px;
+  background: var(--bg-elev-1);
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+}
+
+.house-log--tail {
+  background: #132b1e;
+  border-color: #2f7a49;
+}
+
+/* Each line visually separated */
+.log-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 4px 2px;
+}
+
+.log-line + .log-line {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  margin-top: 4px;
+  padding-top: 6px;
+}
+
+/* Index badge */
 .log-idx {
+  display: inline-block;
   background: rgba(159,232,201,0.12);
   border: 1px solid rgba(159,232,201,0.35);
   border-radius: 999px;
-  padding: 1px 8px;
-  display: inline-block;
+  padding: 1px 7px;
+  margin-right: 4px;
+  font-weight: 700;
+  color: #9fe8c9;
 }
 
-/* Tail line remains a little more prominent */
-.house-log--tail .log-line {
-  background: rgba(47,122,73,0.14);
-  border: 1px solid rgba(47,122,73,0.45);
-  border-radius: 8px;
-  padding: 6px 8px;
-}
+/* Highlight bits */
+.log-roll { color: #ffd089; font-weight: 600; }
+.log-delta { color: #dffbe9; }
+.log-tapped { color: #c4d7e1; font-style: italic; }
+.log-note { color: #a9b9ff; }
 
-/* ---------- Small screens ---------- */
+/* --- Responsive Tweaks --- */
 @media (max-width: 560px) {
-  /* Turn each line into a small card with a grid layout */
-  .log-line {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 2px 8px;              /* row, col */
-    white-space: normal;       /* allow wrapping */
-    background: #0d1918;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 8px;
-    padding: 6px 8px;
-  }
-  .log-line + .log-line { margin-top: 6px; }
-
-  /* First row: idx | roll */
-  .log-idx  { grid-column: 1; align-self: center; }
-  .log-roll { grid-column: 2; align-self: center; font-weight: 700; }
-
-  /* Hide the dot separators on mobile */
-  .log-sep { display: none; }
-
-  /* Details flow to full width rows under the first line */
-  .log-delta,
-  .log-tapped,
-  .log-note {
-    grid-column: 1 / -1;
-    margin-top: 2px;
+  .house-summary-metrics {
+    gap: 6px;
   }
 
-  /* Slightly larger, airier text on small screens */
-  .house-log,
-  .house-log--tail {
-    font-size: 13px;
-    line-height: 1.5;
+  #hist {
+    height: 220px;
   }
 }

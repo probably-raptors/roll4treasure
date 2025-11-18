@@ -1,411 +1,514 @@
-/* Treasure Cruise session UI
-   - No auto-advance; turn advances only on "Pass turn"
-   - Player chips with sliding highlight
-   - Choice mode on roll=6 (top 3, click to choose)
-   - Shows kept card (1–5) in reveal, highlighted
-   - Chosen-card flash overlay
-   - End Game lock
-*/
+// app/static/js/treasure.js
+//
+// Treasure Cruise front-end:
+// - Precache page polling
+// - Session UI (roll / choose / pass / end)
+// - Minimal, modern, no external dependencies
+
 (function () {
-  const { $, $$, toast, haptic, escapeHtml } = window.EDH;
+  "use strict";
 
-  const root      = $("#tc-root");
-  const sid       = root?.dataset.sid;
-
-  const btnRoll   = $("#tc-roll");
-  const btnPass   = $("#tc-pass");
-  const btnEnd    = $("#tc-end");
-  const playersBar= $("#tc-players");
-  const turnLabel = $("#tc-turnlabel");
-  const deckHost  = $("#tc-deck");
-  const handHost  = $("#tc-hand");
-  const logBox    = $("#tc-logbox");
-  const logToggle = $("#tc-log-toggle");
-
-  let state = null;
-  let inflight = false;
-  let choicePending = false;
-  let lastReveal = [];
-  let playerSlider = null;
-
-  // --- Banner ---
-  const banner = document.createElement("div");
-  banner.id = "tc-banner";
-  banner.className = "tc-banner";
-  banner.hidden = true;
-  root.insertBefore(banner, root.firstChild);
-  const showBanner = (msg) => { banner.textContent = msg; banner.hidden = false; };
-  const hideBanner = () => { banner.hidden = true; };
-
-  // --- Chosen-card flash overlay ---
-  const flashHost = document.createElement("div");
-  flashHost.id = "tc-flash";
-  flashHost.setAttribute("aria-hidden", "true");
-  document.body.appendChild(flashHost);
-
-  function flashChosen(card) {
-    if (!card || !card.img) return;
-    flashHost.innerHTML = "";
-    const wrap = document.createElement("div");
-    wrap.className = "card";
-    const img = new Image();
-    img.src = card.img;
-    img.alt = card.name || "Chosen card";
-    wrap.appendChild(img);
-    flashHost.appendChild(wrap);
-
-    // restart animation
-    flashHost.classList.remove("show");
-    void flashHost.offsetWidth; // reflow
-    flashHost.classList.add("show");
-
-    // auto-hide after animation
-    setTimeout(() => {
-      flashHost.classList.remove("show");
-      flashHost.innerHTML = "";
-    }, 1200);
+  function $(selector, root) {
+    return (root || document).querySelector(selector);
   }
 
-  const isClosed = () => !!state?.closed_at;
-
-  const setBusy = (busy) => {
-    inflight = busy;
-    if (btnRoll) {
-      if (busy) {
-        btnRoll.textContent = "…";
-      } else {
-        btnRoll.textContent = `Pay ${costNow()} • Roll d6`;
-      }
-    }
-    updateControls();
-  };
-
-  const lockAll = () => {
-    if (btnRoll) btnRoll.disabled = true;
-    if (btnPass) btnPass.disabled = true;
-    if (btnEnd)  btnEnd.disabled  = true;
-  };
-
-  const currentPlayer = () => state?.players?.[state.turn_idx];
-  const costNow = () => 1 + ((currentPlayer()?.digs_this_game) || 0);
-
-  const updateControls = () => {
-    if (isClosed()) { lockAll(); return; }
-    const alreadyDug = !!currentPlayer()?.dug_this_turn;
-    const lock = inflight || choicePending;
-    if (btnRoll) btnRoll.disabled = lock || alreadyDug;
-    if (btnPass) btnPass.disabled = lock;   // disabled only during pending choice/inflight
-    if (btnEnd)  btnEnd.disabled  = !!inflight;
-  };
-
-  // --- Player slider (animated highlight) ---
-  const ensureSlider = () => {
-    if (!playerSlider) {
-      playerSlider = document.createElement("div");
-      playerSlider.id = "tc-player-slider";
-      playersBar.appendChild(playerSlider);
-    }
-  };
-  const moveSlider = () => {
-    ensureSlider();
-    const active = playersBar.querySelector(".pill--on");
-    if (!active) { playerSlider.style.opacity = "0"; return; }
-    const left = active.offsetLeft;
-    const top = active.offsetTop;
-    const w = active.offsetWidth;
-    const h = active.offsetHeight;
-    playerSlider.style.opacity = "1";
-    playerSlider.style.left = `${left}px`;
-    playerSlider.style.top = `${top}px`;
-    playerSlider.style.width = `${w}px`;
-    playerSlider.style.height = `${h}px`;
-  };
-  window.addEventListener("resize", () => { moveSlider(); });
-
-  const updateTurnUI = () => {
-    if (!state) return;
-    const p = currentPlayer();
-    if (turnLabel) turnLabel.textContent = `Turn ${state.turn_num} • ${p.name}`;
-
-    // Render chips: names only; active has .pill--on
-    playersBar.innerHTML = "";
-    (state.players || []).forEach((pl, i) => {
-      const el = document.createElement("div");
-      el.className = `pill ${i === state.turn_idx ? "pill--on" : ""}`;
-      el.textContent = pl.name;
-      playersBar.appendChild(el);
-    });
-    ensureSlider();
-    moveSlider();
-
-    if (btnRoll) btnRoll.textContent = `Pay ${costNow()} • Roll d6`;
-  };
-
-  const cardEl = (c, extraClass = "") => {
-    const a = document.createElement("a");
-    a.href = c.scry || "#";
-    a.target = "_blank";
-    a.className = `tc-card${extraClass ? " " + extraClass : ""}`;
-    a.setAttribute("aria-label", c.name);
-
-    const img = new Image();
-    img.loading = "lazy";
-    img.src = c.img;
-    img.alt = c.name;
-
-    a.appendChild(img);
-    a.title = c.name;
-    return a;
-  };
-
-  const renderDeck = (override) => {
-    const src = (override && override.length)
-      ? override
-      : (state?.pending_choices?.length ? state.pending_choices : (state?.pile?.revealed || []));
-    deckHost.innerHTML = "";
-    if (!src.length) return;
-    src.forEach(c => deckHost.appendChild(cardEl(c, c.kept ? "kept" : "")));
-  };
-
-  const renderHand = () => {
-    handHost.innerHTML = "";
-    const p = currentPlayer();
-    (p?.gains || []).forEach(c => handHost.appendChild(cardEl(c)));
-  };
-
-  let showAllLog = false;
-  const renderLog = () => {
-    const lines = state?.log || [];
-    const subset = showAllLog ? lines : lines.slice(-5);
-    logBox.innerHTML = subset.map(x => escapeHtml(x)).join("<br>");
-    logToggle.textContent = showAllLog ? "Show recent" : "Show all";
-    logToggle.setAttribute("aria-expanded", showAllLog ? "true" : "false");
-    logBox.scrollTop = logBox.scrollHeight;
-  };
-
-  const enableChoice = (choices) => {
-    deckHost.classList.add("tc-choice");
-    root.classList.add("is-choice");
-    const cards = Array.from(deckHost.querySelectorAll(".tc-card"));
-    cards.forEach((a, i) => {
-      a.classList.add("clickable");
-      a.title = `${choices[i]?.name || "Choose this card"}`;
-      a.setAttribute("role", "button");
-      a.tabIndex = 0;
-      const act = () => choose(choices[i].id);
-      a.addEventListener("click", (ev) => { ev.preventDefault(); act(); }, { once: true });
-      a.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); act(); }
-      });
-    });
-  };
-  const disableChoice = () => {
-    deckHost.classList.remove("tc-choice");
-    root.classList.remove("is-choice");
-    for (const a of deckHost.querySelectorAll(".tc-card.clickable")) {
-      a.classList.remove("clickable");
-      a.removeAttribute("role");
-      a.removeAttribute("tabindex");
-    }
-  };
-
-  async function fetchState() {
-    const r = await fetch(`/treasure/${sid}/state`);
-    if (!r.ok) throw new Error("Failed to load session");
-    return r.json();
+  function $all(selector, root) {
+    return Array.from((root || document).querySelectorAll(selector));
   }
 
-  async function refreshState() {
-    state = await fetchState();
-    updateTurnUI();
+  async function fetchJSON(url, options) {
+    const res = await fetch(url, options);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const err = new Error("Request failed");
+      err.status = res.status;
+      err.body = text;
+      throw err;
+    }
+    return res.json();
+  }
 
-    if (isClosed()) {
-      choicePending = false;
-      disableChoice();
-      lockAll();
-      showBanner("⛔ Game ended. This session is read-only.");
-      renderDeck();
-      renderHand();
-      renderLog();
+  /* ------------------------------------------------------------------ */
+  /*  PRECACHE PAGE                                                     */
+  /* ------------------------------------------------------------------ */
+
+  function initPrecache(root) {
+    const sid = root.dataset.sid;
+    if (!sid) return;
+
+    const fill = $("#pc-fill", root);
+    const doneEl = $("#pc-done", root);
+    const totalEl = $("#pc-total", root);
+    const statusEl = $("#pc-status", root);
+    const actions = $("#pc-actions", root);
+    const openBtn = $("#pc-open", root);
+
+    if (!fill || !doneEl || !totalEl || !statusEl || !actions || !openBtn) {
       return;
     }
 
-    if (state?.pending_choices?.length) {
-      lastReveal = state.pending_choices;
-      renderDeck(lastReveal);
-      enableChoice(lastReveal);
-      choicePending = true;
-      showBanner("🎲 Rolled 6 — choose 1 from the 3 shown cards.");
-    } else {
-      choicePending = false;
-      renderDeck();
-      if (currentPlayer()?.dug_this_turn) {
-        showBanner("Roll complete — press “Pass turn” when you’re done.");
-      } else {
-        hideBanner();
+    async function poll() {
+      try {
+        const url = `/treasure/precache_status?sid=${encodeURIComponent(sid)}`;
+        const data = await fetchJSON(url);
+
+        const total = data.total || 0;
+        const done = data.done || 0;
+        const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+
+        totalEl.textContent = total;
+        doneEl.textContent = done;
+        fill.style.width = pct + "%";
+
+        if (data.is_ready) {
+          statusEl.textContent = "Done.";
+          actions.classList.add("show");
+          openBtn.setAttribute("href", `/treasure/${sid}`);
+          return; // stop polling
+        } else {
+          statusEl.textContent = "Fetching images…";
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Waiting…";
       }
-      disableChoice();
+      setTimeout(poll, 800);
     }
 
-    renderHand();
-    renderLog();
-    updateControls();
+    poll();
   }
 
-  // --- Actions ---
-  async function roll() {
-    if (inflight || choicePending || isClosed()) return;
-    setBusy(true);
-    try {
-      const fd = new FormData();
-      fd.append("player_id", state.players[state.turn_idx].id);
-      const r = await fetch(`/treasure/${sid}/roll`, { method: "POST", body: fd });
-      if (!r.ok) throw new Error(await r.text());
-      const res = await r.json();
+  /* ------------------------------------------------------------------ */
+  /*  SESSION PAGE                                                      */
+  /* ------------------------------------------------------------------ */
 
-      state = res.state;
-      updateTurnUI();
+  function initSession(root) {
+    const sid = root.dataset.sid;
+    if (!sid) return;
 
-      if (res.mode === "choose") {
-        lastReveal = (res.choices || []);
-        renderDeck(lastReveal);
-        enableChoice(lastReveal);
-        choicePending = true;
-        showBanner("🎲 Rolled 6 — choose 1 from the 3 shown cards.");
-      } else {
-        // 1–5: show kept + others; do not advance
-        renderHand();
-        lastReveal = (res.revealed || []);
-        renderDeck(lastReveal);
-        renderLog();
-        showBanner("Roll complete — press “Pass turn” when you’re done.");
-        disableChoice();
-        choicePending = false;
+    // Elements
+    const sidCodeEl = $("#tc-sid", root);
+    const sidCopyBtn = $("#tc-sid-copy", root);
+    const playersEl = $("#tc-players", root);
+    const turnLabelEl = $("#tc-turnlabel", root);
+    const deckEl = $("#tc-deck", root);
+    const handEl = "#tc-hand" ? $("#tc-hand", root) : null;
+    const logBox = "#tc-logbox" ? $("#tc-logbox", root) : null;
+    const logToggle = "#tc-log-toggle" ? $("#tc-log-toggle", root) : null;
 
-        // flash the kept card
-        if (res.received) flashChosen(res.received);
-      }
+    const rollBtn = $("#tc-roll");
+    const passBtn = $("#tc-pass");
+    const endBtn = $("#tc-end");
 
-      updateControls();
-    } catch (e) {
-      console.error(e);
-      toast(e?.message || "Roll failed.");
-    } finally {
-      setBusy(false);
-      updateControls();
-    }
-  }
+    let state = null;
+    let lastReveal = [];
+    let lastMode = null;
+    let lastReceived = null;
+    let choiceActive = false;
+    let logExpanded = false;
 
-  async function choose(cardId) {
-    if (inflight || isClosed()) return;
-    setBusy(true);
-    try {
-      const fd = new FormData();
-      fd.append("player_id", state.players[state.turn_idx].id);
-      fd.append("card_id", cardId);
-      const r = await fetch(`/treasure/${sid}/choose`, { method: "POST", body: fd });
-      if (!r.ok) throw new Error(await r.text());
-      const res = await r.json();
-
-      state = res.state;
-      lastReveal = [];
-      choicePending = false;
-
-      updateTurnUI();
-      renderDeck();
-      renderHand();
-      renderLog();
-
-      showBanner("Choice made — press “Pass turn” when you’re done.");
-      disableChoice();
-      updateControls();
-
-      // flash the chosen card
-      if (res.received) flashChosen(res.received);
-
-      haptic("success");
-      toast(`Chosen.`);
-    } catch (e) {
-      console.error(e);
-      toast("Choose failed.");
-    } finally {
-      setBusy(false);
-      updateControls();
-    }
-  }
-
-  async function passTurn() {
-    if (inflight || choicePending || isClosed()) return;
-    setBusy(true);
-    try {
-      const r = await fetch(`/treasure/${sid}/pass`, { method: "POST" });
-      if (!r.ok) throw new Error(await r.text());
-      const res = await r.json();
-      state = res.state;
-      lastReveal = [];
-      hideBanner();
-      disableChoice();
-      choicePending = false;
-      updateTurnUI();
-      moveSlider();       // animate to the new active player
-      renderDeck();
-      renderHand();
-      renderLog();
-      updateControls();
-      toast(`Turn passed.`);
-    } catch (e) {
-      console.error(e);
-      toast("Pass failed.");
-    } finally {
-      setBusy(false);
-      updateControls();
-    }
-  }
-
-  async function endGame() {
-    if (inflight || isClosed()) return;
-    if (!confirm("End game for this session? No further actions will be allowed.")) return;
-    setBusy(true);
-    try {
-      const r = await fetch(`/treasure/${sid}/end`, { method: "POST" });
-      if (!r.ok) throw new Error(await r.text());
-      const res = await r.json();
-      state = res.state;
-      choicePending = false;
-      disableChoice();
-      lockAll();
-      showBanner("⛔ Game ended. This session is read-only.");
-      renderDeck();
-      renderHand();
-      renderLog();
-      haptic("success");
-      toast("Game ended.");
-    } catch (e) {
-      console.error(e);
-      toast("End game failed.");
-    } finally {
-      setBusy(false);
-      updateControls();
-    }
-  }
-
-  // --- Wire up & init ---
-  if (btnRoll) btnRoll.addEventListener("click", roll);
-  if (btnPass) btnPass.addEventListener("click", passTurn);
-  if (btnEnd)  btnEnd.addEventListener("click", endGame);
-  if (logToggle) logToggle.addEventListener("click", () => { showAllLog = !showAllLog; renderLog(); });
-
-  async function init() {
-    const sidBtn = $("#tc-sid-copy");
-    const sidTxt = $("#tc-sid");
-    if (sidBtn && sidTxt) {
-      sidBtn.addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText(sidTxt.textContent.trim()); toast("Copied!"); }
-        catch { toast("Copy failed."); }
+    function setBusy(isBusy) {
+      [rollBtn, passBtn, endBtn].forEach((btn) => {
+        if (!btn) return;
+        btn.disabled = isBusy;
       });
     }
-    await refreshState();
+
+    function setChoiceMode(on) {
+      choiceActive = on;
+      if (!deckEl) return;
+      if (on) {
+        deckEl.classList.add("tc-choice");
+      } else {
+        deckEl.classList.remove("tc-choice");
+      }
+    }
+
+    function renderPlayers() {
+      if (!state || !playersEl || !Array.isArray(state.players)) return;
+      playersEl.innerHTML = "";
+
+      const slider = document.createElement("div");
+      slider.id = "tc-player-slider";
+      playersEl.appendChild(slider);
+
+      state.players.forEach((p, idx) => {
+        const span = document.createElement("span");
+        span.className = "chip";
+        if (idx === state.turn_idx) {
+          span.classList.add("chip--active");
+        }
+        span.textContent = p.name;
+        span.dataset.playerId = p.id;
+        playersEl.appendChild(span);
+      });
+
+      // Basic slider placement (optional, non-critical)
+      requestAnimationFrame(() => {
+        const active = playersEl.querySelector(".chip.chip--active");
+        if (!active) {
+          slider.style.opacity = "0";
+          return;
+        }
+        const rect = active.getBoundingClientRect();
+        const parentRect = playersEl.getBoundingClientRect();
+        slider.style.opacity = "1";
+        slider.style.left = rect.left - parentRect.left + "px";
+        slider.style.top = rect.top - parentRect.top + "px";
+        slider.style.width = rect.width + "px";
+        slider.style.height = rect.height + "px";
+      });
+    }
+
+    function renderTurnLabel() {
+      if (!turnLabelEl || !state || !Array.isArray(state.players)) return;
+      const idx = state.turn_idx ?? 0;
+      const current = state.players[idx];
+      const name = current ? current.name : "—";
+      const turnNum = state.turn_num ?? "—";
+      turnLabelEl.textContent = `Turn ${turnNum} — ${name}'s turn`;
+    }
+
+    function getCurrentPlayer() {
+      if (!state || !Array.isArray(state.players)) return null;
+      const idx = state.turn_idx ?? 0;
+      return state.players[idx] || null;
+    }
+
+    function updateRollButtonLabel() {
+      if (!rollBtn) return;
+      const p = getCurrentPlayer();
+      if (!p) {
+        rollBtn.textContent = "Pay — • Roll d6";
+        return;
+      }
+      const digs = typeof p.digs_this_game === "number" ? p.digs_this_game : 0;
+      const cost = digs + 1;
+      rollBtn.textContent = `Pay ${cost} • Roll d6`;
+    }
+
+
+    function createCardTile(card, { clickable = false, kept = false } = {}) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "tc-card";
+      if (clickable) wrapper.classList.add("clickable");
+      if (kept) wrapper.classList.add("kept");
+      wrapper.dataset.cardId = card.id || "";
+
+      const inner = document.createElement("div");
+      inner.className = "tc-card-inner";
+
+      if (card.img) {
+        const img = document.createElement("img");
+        img.className = "card-img";
+        img.src = card.img;
+        img.alt = card.name || "Card";
+        inner.appendChild(img);
+
+        const name = document.createElement("div");
+        name.className = "tc-card-name";
+        name.textContent = card.name || "Unknown";
+        inner.appendChild(name);
+      } else {
+        const fallback = document.createElement("div");
+        fallback.className = "tc-card-fallback";
+        fallback.textContent = card.name || "Unknown card";
+        inner.appendChild(fallback);
+      }
+
+      wrapper.appendChild(inner);
+      return wrapper;
+    }
+
+
+    function renderDeckArea() {
+      if (!deckEl) return;
+      deckEl.innerHTML = "";
+
+      if (!lastReveal || lastReveal.length === 0) {
+        setChoiceMode(false);
+        return;
+      }
+
+      const isChoiceMode = lastMode === "choose";
+      setChoiceMode(isChoiceMode);
+
+      lastReveal.forEach((item) => {
+        // item may be plain card or { kept: bool, ...card }
+        const card = item.card || item;
+        const kept = item.kept === true || item.kept === "true";
+        const node = createCardTile(card, {
+          clickable: isChoiceMode,
+          kept: kept,
+        });
+        deckEl.appendChild(node);
+      });
+    }
+
+    function renderHand() {
+      if (!handEl || !state || !Array.isArray(state.players)) return;
+      handEl.innerHTML = "";
+
+      const idx = state.turn_idx ?? 0;
+      const current = state.players[idx];
+      if (!current || !Array.isArray(current.gains)) {
+        return;
+      }
+
+      current.gains.forEach((card) => {
+        const node = createCardTile(card);
+        handEl.appendChild(node);
+      });
+    }
+
+    function renderLog() {
+      if (!logBox || !state || !Array.isArray(state.log)) return;
+
+      const lines = state.log;
+      logBox.innerHTML = "";
+
+      lines.forEach((line, idx) => {
+        const div = document.createElement("div");
+        div.className = "log-line";
+        div.textContent = line;
+        logBox.appendChild(div);
+      });
+
+      if (!logExpanded) {
+        logBox.scrollTop = logBox.scrollHeight;
+      }
+    }
+
+    function renderAll() {
+      renderPlayers();
+      renderTurnLabel();
+      updateRollButtonLabel();
+      renderDeckArea();
+      renderHand();
+      renderLog();
+    }
+
+    async function loadInitialState() {
+      try {
+        const url = `/treasure/${encodeURIComponent(sid)}/state`;
+        const data = await fetchJSON(url);
+        state = data;
+        // Initial “pending_choices” support: if any, show them as choice
+        if (state && Array.isArray(state.pending_choices) && state.pending_choices.length) {
+          lastReveal = state.pending_choices.map((c) => ({ card: c }));
+          lastMode = "choose";
+        }
+        renderAll();
+      } catch (err) {
+        console.error("Failed to load session state", err);
+      }
+    }
+
+    async function doRoll() {
+      setBusy(true);
+      try {
+        const url = `/treasure/${encodeURIComponent(sid)}/roll`;
+        const body = new URLSearchParams();
+        // player_id omitted => server uses current player
+        const data = await fetchJSON(url, {
+          method: "POST",
+          body,
+        });
+
+        state = data.state || null;
+        lastMode = data.mode || null;
+        lastReceived = data.received || null;
+
+        if (data.mode === "choose") {
+          // data.choices: array of Card
+          lastReveal = (data.choices || []).map((c) => ({ card: c }));
+        } else if (Array.isArray(data.revealed)) {
+          // each item is { kept: bool, ...card }
+          lastReveal = data.revealed.map((r) => {
+            const { kept, ...card } = r;
+            return { kept: !!kept, card };
+          });
+        } else {
+          lastReveal = [];
+        }
+
+        renderAll();
+      } catch (err) {
+        console.error("roll failed", err);
+        alert("Roll failed. Please try again.");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function doChoose(cardId) {
+      if (!cardId) return;
+      setBusy(true);
+      try {
+        const url = `/treasure/${encodeURIComponent(sid)}/choose`;
+        const body = new URLSearchParams();
+        body.set("card_id", cardId);
+        const data = await fetchJSON(url, {
+          method: "POST",
+          body,
+        });
+
+        state = data.state || null;
+        lastMode = "auto";
+        lastReceived = data.received || null;
+
+        if (Array.isArray(data.revealed)) {
+          lastReveal = data.revealed.map((c) => ({ card: c }));
+        } else {
+          lastReveal = [];
+        }
+
+        setChoiceMode(false);
+        renderAll();
+      } catch (err) {
+        console.error("choose failed", err);
+        alert("Choice failed. Please try again.");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function doPass() {
+      setBusy(true);
+      try {
+        const url = `/treasure/${encodeURIComponent(sid)}/pass`;
+        const data = await fetchJSON(url, {
+          method: "POST",
+        });
+        state = data.state || null;
+        lastReveal = [];
+        lastMode = null;
+        renderAll();
+      } catch (err) {
+        console.error("pass failed", err);
+        alert("Pass failed. Please try again.");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function doEnd() {
+      if (!window.confirm("End this game for everyone in this session?")) {
+        return;
+      }
+      setBusy(true);
+      try {
+        const url = `/treasure/${encodeURIComponent(sid)}/end`;
+        const data = await fetchJSON(url, {
+          method: "POST",
+        });
+        state = data.state || null;
+        lastReveal = [];
+        lastMode = null;
+        renderAll();
+      } catch (err) {
+        console.error("end failed", err);
+        alert("Could not end the game. Please try again.");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function bindEvents() {
+      // Copy session code
+      if (sidCopyBtn && sidCodeEl) {
+        sidCopyBtn.addEventListener("click", async () => {
+          const text = sidCodeEl.textContent || "";
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text.trim());
+            } else {
+              // Fallback
+              const tmp = document.createElement("textarea");
+              tmp.value = text.trim();
+              document.body.appendChild(tmp);
+              tmp.select();
+              document.execCommand("copy");
+              document.body.removeChild(tmp);
+            }
+            alert("Session code copied.");
+          } catch (err) {
+            console.error(err);
+            alert("Unable to copy; please copy manually.");
+          }
+        });
+      }
+
+      // Roll / pass / end buttons
+      if (rollBtn) {
+        rollBtn.addEventListener("click", () => {
+          if (choiceActive) {
+            alert("You must choose a card for the previous roll first.");
+            return;
+          }
+          void doRoll();
+        });
+      }
+
+      if (passBtn) {
+        passBtn.addEventListener("click", () => {
+          void doPass();
+        });
+      }
+
+      if (endBtn) {
+        endBtn.addEventListener("click", () => {
+          void doEnd();
+        });
+      }
+
+      // Choice click handler (event delegation on deck)
+      if (deckEl) {
+        deckEl.addEventListener("click", (ev) => {
+          if (!choiceActive) return;
+          const target = ev.target;
+          if (!target) return;
+          const cardNode = target.closest("[data-card-id]");
+          if (!cardNode) return;
+          const cardId = cardNode.dataset.cardId;
+          if (!cardId) return;
+          void doChoose(cardId);
+        });
+      }
+
+      // Log toggle
+      if (logToggle && logBox) {
+        logToggle.addEventListener("click", () => {
+          logExpanded = !logExpanded;
+          if (logExpanded) {
+            logBox.classList.add("log__box--full");
+            logToggle.textContent = "Collapse";
+          } else {
+            logBox.classList.remove("log__box--full");
+            logToggle.textContent = "Show all";
+            logBox.scrollTop = logBox.scrollHeight;
+          }
+        });
+      }
+    }
+
+    bindEvents();
+    void loadInitialState();
   }
 
-  init();
+  /* ------------------------------------------------------------------ */
+  /*  ENTRYPOINT                                                        */
+  /* ------------------------------------------------------------------ */
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const precacheRoot = document.getElementById("tc-precache");
+    if (precacheRoot) {
+      initPrecache(precacheRoot);
+    }
+
+    const sessionRoot = document.getElementById("tc-root");
+    if (sessionRoot) {
+      initSession(sessionRoot);
+    }
+  });
 })();
