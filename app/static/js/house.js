@@ -86,6 +86,12 @@
       </div>
 
       <div class="card">
+        <div class="k">Puzzlebox State</div>
+        <div class="v" id="pb_state">—</div>
+      </div>
+
+
+      <div class="card">
         <div class="k">Puzzlebox Counters</div>
         <div class="v" id="pb_cnt">—</div>
       </div>
@@ -274,6 +280,13 @@
 
     $('#pb_cnt').textContent  = fmt(res.puzzlebox?.counters);
     $('#pb_mana').textContent = fmt(res.puzzlebox?.mana);
+
+    const ready = res.puzzlebox?.ready;
+    $('#pb_state').textContent =
+      ready === true ? 'Untapped (Ready)' :
+      ready === false ? 'Tapped' :
+      '—';
+
 
     drawHistogram(res.roll_histogram || {});
     updateSticky(res);
