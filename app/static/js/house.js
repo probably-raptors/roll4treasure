@@ -62,6 +62,7 @@
 
   function ensureResultsUI() {
     if (resultsHost) return;
+    if (!pageContainer) return;
 
     resultsHost = document.createElement('div');
     resultsHost.className = 'stack-12';
@@ -90,7 +91,6 @@
         <div class="k">Puzzlebox State</div>
         <div class="v" id="pb_state">—</div>
       </div>
-
 
       <div class="card">
         <div class="k">Puzzlebox Counters</div>
@@ -121,7 +121,7 @@
     `;
     pageContainer.appendChild(resultsHost);
 
-    histCtx = $('#hist', resultsHost).getContext('2d');
+    histCtx = $('#hist', resultsHost)?.getContext('2d');
     logBox  = $('#logBox', resultsHost);
     logTail = $('#logTail', resultsHost);
     toggleLogBtn = $('#toggleLogBtn', resultsHost);
@@ -154,30 +154,23 @@
     const W = canvas.width = canvas.clientWidth;
     const H = canvas.height;
 
-    // chart frame
     const margin = { left: 28, right: 10, top: 8, bottom: 22 };
     const innerW = W - margin.left - margin.right;
     const innerH = H - margin.top - margin.bottom;
 
-    // data 1..20
     const data = Array.from({ length: 20 }, (_, i) => hist?.[String(i + 1)] || 0);
     const max = Math.max(1, ...data);
 
-    // clear and axes
     histCtx.clearRect(0, 0, W, H);
     histCtx.strokeStyle = 'rgba(255,255,255,0.35)';
     histCtx.lineWidth = 1;
 
-    // axes lines
     histCtx.beginPath();
-    // y axis
     histCtx.moveTo(margin.left, margin.top);
     histCtx.lineTo(margin.left, margin.top + innerH);
-    // x axis
     histCtx.lineTo(margin.left + innerW, margin.top + innerH);
     histCtx.stroke();
 
-    // y ticks (0 and max)
     histCtx.fillStyle = 'rgba(255,255,255,0.7)';
     histCtx.font = '11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
     histCtx.textAlign = 'right';
@@ -188,7 +181,6 @@
     histCtx.fillText('0', margin.left - 6, y0);
     histCtx.fillText(String(max), margin.left - 6, yMax);
 
-    // bars
     const step = innerW / 20;
     const barW = Math.max(2, step * 0.7);
 
@@ -200,7 +192,6 @@
       histCtx.fillRect(x, y, barW, h);
     });
 
-    // x labels 1..20
     histCtx.fillStyle = 'rgba(255,255,255,0.7)';
     histCtx.textAlign = 'center';
     histCtx.textBaseline = 'alphabetic';
@@ -211,14 +202,13 @@
   }
 
   function updateSticky(res) {
-    sIters.textContent    = `Iter:${fmt(res.iterations)}`;
-    sRobots.textContent   = `R:${fmt(res.robots?.total)}`;
-    sTreas.textContent    = `T:${fmt(res.treasures?.total)}`;
-    sCounters.textContent = `PB Cntrs:${fmt(res.puzzlebox?.counters)}`;
-    sMana.textContent     = `Mana:${fmt(res.puzzlebox?.mana)}`;
+    if (sIters)    sIters.textContent    = `Iter:${fmt(res.iterations)}`;
+    if (sRobots)   sRobots.textContent   = `R:${fmt(res.robots?.total)}`;
+    if (sTreas)    sTreas.textContent    = `T:${fmt(res.treasures?.total)}`;
+    if (sCounters) sCounters.textContent = `PB Cntrs:${fmt(res.puzzlebox?.counters)}`;
+    if (sMana)     sMana.textContent     = `Mana:${fmt(res.puzzlebox?.mana)}`;
   }
 
-  // Format one log line to HTML
   function formatLogLine(e) {
     const deltas = [];
     if (e.created?.robots)    deltas.push(`+${e.created.robots} Robot${e.created.robots > 1 ? 's' : ''}`);
@@ -242,13 +232,12 @@
 
   function renderLog(logArr) {
     ensureResultsUI();
+    if (!logBox || !logTail || !toggleLogBtn) return;
 
-    // Reset view to collapsed for each new run
     logBox.style.display = 'none';
     toggleLogBtn.textContent = 'Show';
     toggleLogBtn.setAttribute('aria-expanded', 'false');
 
-    // Tail (final line) — show even when collapsed
     if (!logArr || !logArr.length) {
       logTail.innerHTML = '<div class="log-empty">No steps (stopped immediately).</div>';
       logBox.innerHTML = '';
@@ -261,102 +250,129 @@
       </div>
     `;
 
-    // Full history
-    const html = logArr.map(formatLogLine).join('');
-    logBox.innerHTML = html;
+    logBox.innerHTML = logArr.map(formatLogLine).join('');
   }
 
   function renderResults(res) {
     ensureResultsUI();
 
-    $('#it_val').textContent = fmt(res.iterations);
+    const it = $('#it_val');
+    if (it) it.textContent = fmt(res.iterations);
 
-    $('#r_total').textContent = fmt(res.robots?.total);
-    $('#r_ut').textContent    = fmt(res.robots?.untapped);
-    $('#r_tp').textContent    = fmt(res.robots?.tapped);
+    const rTotal = $('#r_total');
+    const rUt = $('#r_ut');
+    const rTp = $('#r_tp');
+    if (rTotal) rTotal.textContent = fmt(res.robots?.total);
+    if (rUt)    rUt.textContent    = fmt(res.robots?.untapped);
+    if (rTp)    rTp.textContent    = fmt(res.robots?.tapped);
 
-    $('#t_total').textContent = fmt(res.treasures?.total);
-    $('#t_ut').textContent    = fmt(res.treasures?.untapped);
-    $('#t_tp').textContent    = fmt(res.treasures?.tapped);
+    const tTotal = $('#t_total');
+    const tUt = $('#t_ut');
+    const tTp = $('#t_tp');
+    if (tTotal) tTotal.textContent = fmt(res.treasures?.total);
+    if (tUt)    tUt.textContent    = fmt(res.treasures?.untapped);
+    if (tTp)    tTp.textContent    = fmt(res.treasures?.tapped);
 
-    $('#pb_cnt').textContent  = fmt(res.puzzlebox?.counters);
-    $('#pb_mana').textContent = fmt(res.puzzlebox?.mana);
+    const pbCnt = $('#pb_cnt');
+    const pbMana = $('#pb_mana');
+    if (pbCnt)  pbCnt.textContent  = fmt(res.puzzlebox?.counters);
+    if (pbMana) pbMana.textContent = fmt(res.puzzlebox?.mana);
 
+    const pbState = $('#pb_state');
     const ready = res.puzzlebox?.ready;
-    $('#pb_state').textContent =
-      ready === true ? 'Untapped (Ready)' :
-      ready === false ? 'Tapped' :
-      '—';
-
+    if (pbState) {
+      pbState.textContent =
+        ready === true ? 'Untapped (Ready)' :
+        ready === false ? 'Tapped' :
+        '—';
+    }
 
     drawHistogram(res.roll_histogram || {});
     updateSticky(res);
     renderLog(res.log || []);
   }
 
-  // Copy summary
   if (copySummaryBtn) {
     copySummaryBtn.addEventListener('click', async () => {
       const summary = [
-        sIters.textContent,
-        sRobots.textContent,
-        sTreas.textContent,
-        sCounters.textContent,
-        sMana.textContent
-      ].join(' • ');
+        sIters?.textContent || '',
+        sRobots?.textContent || '',
+        sTreas?.textContent || '',
+        sCounters?.textContent || '',
+        sMana?.textContent || ''
+      ].filter(Boolean).join(' • ');
       try {
         await navigator.clipboard.writeText(summary);
-        runNote.textContent = 'Copied.';
-        setTimeout(() => (runNote.textContent = ''), 1200);
+        if (runNote) runNote.textContent = 'Copied.';
+        setTimeout(() => { if (runNote) runNote.textContent = ''; }, 1200);
       } catch {
-        runNote.textContent = 'Copy failed.';
-        setTimeout(() => (runNote.textContent = ''), 1500);
+        if (runNote) runNote.textContent = 'Copy failed.';
+        setTimeout(() => { if (runNote) runNote.textContent = ''; }, 1500);
       }
     });
   }
 
-  // Run simulation (AJAX)
   async function runSim(e) {
     e.preventDefault();
+    if (!runBtn) return;
 
-    const params = new URLSearchParams();
-    params.set('untapped', String(num($('#untapped_other_init').value) ?? 0));
-
+    // If Delney is checked and no stop conditions are set, auto-enable stop-at-100.
     if (delneyChk && delneyChk.checked) {
-      params.set('delney', 'true;);
+      const stopAt100 = $('#stop_ge_100');
+      const st = num($('#stop_treasures_ge')?.value);
+      const sr = num($('#stop_robots_ge')?.value);
+      const sm = num($('#stop_mana_ge')?.value);
+      const hasAnyStop = !!(stopAt100?.checked || st !== null || sr !== null || sm !== null);
+      if (!hasAnyStop && stopAt100) stopAt100.checked = true;
     }
 
-    params.set('stop_at_100', $('#stop_ge_100').checked ? 'true' : 'false');
+    const params = new URLSearchParams();
+    params.set('untapped', String(num($('#untapped_other_init')?.value) ?? 0));
 
-    const st = num($('#stop_treasures_ge').value);
-    const sr = num($('#stop_robots_ge').value);
-    const sm = num($('#stop_mana_ge').value);
+    if (delneyChk && delneyChk.checked) {
+      params.set('delney', 'true');
+    }
+
+    params.set('stop_at_100', $('#stop_ge_100')?.checked ? 'true' : 'false');
+
+    const st = num($('#stop_treasures_ge')?.value);
+    const sr = num($('#stop_robots_ge')?.value);
+    const sm = num($('#stop_mana_ge')?.value);
     if (st !== null) params.set('stop_treasures_ge', String(st));
     if (sr !== null) params.set('stop_robots_ge', String(sr));
     if (sm !== null) params.set('stop_mana_ge', String(sm));
 
-    const seed = num($('#seed').value);
+    const seed = num($('#seed')?.value);
     if (seed !== null) params.set('seed', String(seed));
 
     runBtn.disabled = true;
     runBtn.textContent = 'Running…';
-    runNote.textContent = '';
+    if (runNote) runNote.textContent = '';
+
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
 
     try {
-      const r = await fetch(`/house/api/simulate?${params.toString()}`);
-      if (!r.ok) throw new Error(await r.text());
-      const res = await r.json();
+      const r = await fetch(`/house/api/simulate?${params.toString()}`, { signal: ctrl.signal });
+      const text = await r.text();
+      if (!r.ok) throw new Error(text || `HTTP ${r.status}`);
+      const res = JSON.parse(text);
       renderResults(res);
     } catch (err) {
       console.error(err);
-      runNote.textContent = 'Failed to run.';
+      if (runNote) {
+        runNote.textContent = (err && err.name === 'AbortError')
+          ? 'Timed out. Try a stop condition.'
+          : 'Failed to run. Check console.';
+      }
     } finally {
+      clearTimeout(t);
       runBtn.disabled = false;
       runBtn.textContent = 'Run Simulation';
     }
   }
 
-  // Initialize sticky summary and boot with server-rendered result if present
+  // Initialize sticky summary
   updateSticky({
     iterations: null,
     robots:    { total: null, untapped: null, tapped: null },
@@ -364,10 +380,11 @@
     puzzlebox: { counters: null, mana: null }
   });
 
+  // Boot with server-rendered result if present
   const bootData = $('#result')?.dataset?.json;
   if (bootData) {
     try { renderResults(JSON.parse(bootData)); } catch {}
   }
 
-  form.addEventListener('submit', runSim);
+  if (form) form.addEventListener('submit', runSim);
 })();
