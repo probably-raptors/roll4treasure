@@ -46,10 +46,10 @@ class ArtifactPool:
 
 
 def choose_tap_targets(pool: ArtifactPool) -> list[str]:
-    """Pick exactly two tap kinds while preserving Robots:
+    """Pick exactly two tap kinds while preserving Treasures:
     - Tap 'other' first (if available)
-    - Prefer tapping 'treasure' over 'robot'
-    - Only tap robots if unavoidable
+    - Prefer tapping 'robot' over 'treasure'
+    - Only tap treasure if unavoidable
     - Return [] if you can't pay the full cost
     """
     unt_other = pool.other - pool.other_tapped
@@ -68,19 +68,19 @@ def choose_tap_targets(pool: ArtifactPool) -> list[str]:
 
     # 2) Second pick (or first if no 'other'): prefer treasure, then other, then robot
     if len(picks) < 2:
-        if unt_treas > 0:
-            picks.append("treasure")
-            unt_treas -= 1
+        if unt_robot > 0:
+            picks.append("robot")
+            unt_robot -= 1
         elif unt_other > 0:
             picks.append("other")
             unt_other -= 1
-        elif unt_robot > 0:
-            picks.append("robot")
-            unt_robot -= 1
+        elif unt_treas > 0:
+            picks.append("treasure")
+            unt_treas -= 1
 
     # 3) If still short (e.g., need two of a kind), fill with preference: other → treasure → robot
     if len(picks) < 2:
-        for k, n in (("other", unt_other), ("treasure", unt_treas), ("robot", unt_robot)):
+        for k, n in (("other", unt_other), ("robot", unt_robot), ("treasure", unt_treas)):
             if n > 0:
                 picks.append(k)
                 break
@@ -123,10 +123,10 @@ def simulate(req: SimRequest) -> SimResult:
         pool.treasures += created_treasures
         pbox_counters += r
 
+        pending_stop_100 = bool(req.stop_when_counters_ge_100 and pbox_counters >= 100)
+
         reason = ""
-        if req.stop_when_counters_ge_100 and pbox_counters >= 100:
-            reason = "Reached ≥100 PB counters"
-        elif req.stop_treasures_ge is not None and pool.treasures >= req.stop_treasures_ge:
+        if req.stop_treasures_ge is not None and pool.treasures >= req.stop_treasures_ge:
             reason = f"Reached Treasures ≥ {req.stop_treasures_ge}"
         elif req.stop_robots_ge is not None and pool.robots >= req.stop_robots_ge:
             reason = f"Reached Robots ≥ {req.stop_robots_ge}"
@@ -161,6 +161,12 @@ def simulate(req: SimRequest) -> SimResult:
         else:
             note = "Insufficient untapped artifacts to pay Clock."
 
+        if pending_stop_100:
+            if not pbox_tapped:
+                note = "Reached ≥100 PB counters (box untapped)"
+            else:
+                note = note or "Reached ≥100 PB counters but could not untap."
+
         log.append(
             IterLogEntry(
                 iter=iterations + 1,
@@ -171,6 +177,9 @@ def simulate(req: SimRequest) -> SimResult:
             )
         )
         iterations += 1
+
+        if pending_stop_100 and not pbox_tapped:
+            break
 
         if pbox_tapped:
             break
