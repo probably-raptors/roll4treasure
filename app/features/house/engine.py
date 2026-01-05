@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from random import Random
 
 from .models import BoardState, IterLogEntry, SimRequest, SimResult, now_iso
+
+# Safety rails: keep web requests from wedging the instance
+HARD_MAX_ITERS = 250_000
+HARD_MAX_SECONDS = 5.0
 
 
 @dataclass
@@ -66,7 +71,7 @@ def choose_tap_targets(pool: ArtifactPool) -> list[str]:
         picks.append("other")
         unt_other -= 1
 
-    # 2) Second pick (or first if no 'other'): prefer treasure, then other, then robot
+    # 2) Second pick (or first if no 'other'): prefer robot, then other, then treasure
     if len(picks) < 2:
         if unt_robot > 0:
             picks.append("robot")
@@ -78,7 +83,7 @@ def choose_tap_targets(pool: ArtifactPool) -> list[str]:
             picks.append("treasure")
             unt_treas -= 1
 
-    # 3) If still short (e.g., need two of a kind), fill with preference: other → treasure → robot
+    # 3) If still short, fill with preference: other → robot → treasure
     if len(picks) < 2:
         for k, n in (("other", unt_other), ("robot", unt_robot), ("treasure", unt_treas)):
             if n > 0:
@@ -102,7 +107,18 @@ def simulate(req: SimRequest) -> SimResult:
     iterations = 0
     log: list[IterLogEntry] = []
 
-    while iterations < req.max_iters:
+    start = time.monotonic()
+    max_iters = min(req.max_iters, HARD_MAX_ITERS)
+
+    while iterations < max_iters:
+        # Safety: time cap
+        if time.monotonic() - start > HARD_MAX_SECONDS:
+            if log:
+                log[-1].note = (
+                    log[-1].note + " | " if log[-1].note else ""
+                ) + "Stopped: time cap reached."
+            break
+
         # Step 1: Activate Puzzlebox (tap it, +1 mana)
         pbox_tapped = True
         mana += 1
@@ -118,6 +134,11 @@ def simulate(req: SimRequest) -> SimResult:
         elif 6 <= r <= 20:
             created_robots = 1
             created_treasures = 1
+
+        # Mr. House triggers can be doubled by Delney, Streetwise Lookout
+        trigger_mult = 2 if req.has_delney else 1
+        created_robots *= trigger_mult
+        created_treasures *= trigger_mult
 
         pool.robots += created_robots
         pool.treasures += created_treasures
@@ -177,6 +198,13 @@ def simulate(req: SimRequest) -> SimResult:
             )
         )
         iterations += 1
+
+        # Safety: iteration cap
+        if iterations >= max_iters:
+            log[-1].note = (
+                log[-1].note + " | " if log[-1].note else ""
+            ) + "Stopped: iteration cap reached."
+            break
 
         if pending_stop_100 and not pbox_tapped:
             break

@@ -42,7 +42,7 @@
         </label>
 
         <input id="untapped_other_init"
-               name="untapped_other_init"
+               name="untapped"
                type="number"
                min="0"
                value="{{ untapped_other_init }}">
@@ -56,15 +56,27 @@
       </div>
     </div>
 
+    <h2>Board Modifiers</h2>
+
+    <div class="house-checklist row">
+      <input type="checkbox"
+             id="delney"
+             name="delney"
+             value="1"
+             {{ 'checked' if delney else '' }}>
+      <label for="delney">
+        Delney, Streetwise Lookout (double Mr. House trigger)
+      </label>
+    </div>
+
     <h2>Stop Conditions</h2>
 
     <div class="house-checklist row">
       <input type="checkbox"
              id="stop_ge_100"
-             name="stop_when_counters_ge_100"
+             name="stop_at_100"
              value="1"
              {{ 'checked' if stop_at_100 else '' }}>
-
       <label for="stop_ge_100">Stop at PB counters ≥ 100</label>
     </div>
 
@@ -73,6 +85,7 @@
            name="stop_treasures_ge"
            type="number"
            min="0"
+           value="{{ stop_treasures_ge }}"
            placeholder="—">
 
     <label for="stop_robots_ge">Stop at total Robots ≥</label>
@@ -80,6 +93,7 @@
            name="stop_robots_ge"
            type="number"
            min="0"
+           value="{{ stop_robots_ge }}"
            placeholder="—">
 
     <label for="stop_mana_ge">Stop at PB Mana ≥</label>
@@ -87,6 +101,7 @@
            name="stop_mana_ge"
            type="number"
            min="0"
+           value="{{ stop_mana_ge }}"
            placeholder="—">
 
     <label for="seed">Seed (optional)</label>
