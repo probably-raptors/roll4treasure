@@ -19,6 +19,7 @@
   const sTreas    = $('#s-treas');
   const sCounters = $('#s-counters');
   const sMana     = $('#s-mana');
+  const delneyChk = $('#delney');
   const copySummaryBtn = $('#copySummaryBtn');
 
   const pageContainer = $('.container.page');
@@ -320,6 +321,11 @@
 
     const params = new URLSearchParams();
     params.set('untapped', String(num($('#untapped_other_init').value) ?? 0));
+
+    if (delneyChk && delneyChk.checked) {
+      params.set('delney', 'true;);
+    }
+
     params.set('stop_at_100', $('#stop_ge_100').checked ? 'true' : 'false');
 
     const st = num($('#stop_treasures_ge').value);

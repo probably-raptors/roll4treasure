@@ -45,6 +45,7 @@ def _build_req_from_params(params: dict[str, Any]) -> SimRequest:
         stop_treasures_ge=_int("stop_treasures_ge"),
         stop_robots_ge=_int("stop_robots_ge"),
         stop_mana_ge=_int("stop_mana_ge"),
+        has_delney=_bool("delney", False),
         seed=_int("seed"),
     )
 

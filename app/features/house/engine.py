@@ -119,6 +119,11 @@ def simulate(req: SimRequest) -> SimResult:
             created_robots = 1
             created_treasures = 1
 
+        # Mr. House triggers can be doubled by Delney, Streetwise Lookout
+        trigger_mult = 2 if req.has_delney else 1
+        created_robots *= trigger_mult
+        created_treasures *= trigger_mult
+
         pool.robots += created_robots
         pool.treasures += created_treasures
         pbox_counters += r

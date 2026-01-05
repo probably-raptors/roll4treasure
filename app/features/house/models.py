@@ -14,6 +14,8 @@ class SimRequest(BaseModel):
     stop_robots_ge: int | None = None
     stop_mana_ge: int | None = None
 
+    has_delney: bool = False
+
     seed: int | None = None
     max_iters: int = 10_000_000
 
