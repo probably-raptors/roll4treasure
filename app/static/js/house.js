@@ -3,9 +3,12 @@
    - Clickable chips for +2/+5/+10/Set 0
    - Untapped input optional
    - Histogram with axes and labels
-   - Log: nicely formatted, collapsed by default (shows only last line)
+   - Log: intelligent collapse/expand (remembers user preference)
+   - Reset button clears UI + resets form to defaults
 */
 (function () {
+  'use strict';
+
   const $  = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
@@ -23,6 +26,37 @@
   const copySummaryBtn = $('#copySummaryBtn');
 
   const pageContainer = $('.container.page');
+  const resultsMount  = $('#resultsMount');
+  const logMount      = $('#logMount');
+
+  const resetBtn = $('#resetBtn');
+
+  // ---- helpers ----
+  const fmt = (n) => (n === null || n === undefined ? '—' : String(n));
+  const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
+  const esc = (s) =>
+    String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // ---- log expand/collapse state (remember user preference) ----
+  const LOG_PREF_KEY = 'house_log_expanded';
+
+  function getSavedLogPref() {
+    try {
+      const v = localStorage.getItem(LOG_PREF_KEY);
+      if (v === null) return null;
+      return v === 'true';
+    } catch {
+      return null;
+    }
+  }
+
+  function saveLogPref(expanded) {
+    try {
+      localStorage.setItem(LOG_PREF_KEY, expanded ? 'true' : 'false');
+    } catch {
+      // ignore (privacy mode / disabled storage)
+    }
+  }
 
   // Untapped field + chips
   const untapped = $('#untapped_other_init');
@@ -48,104 +82,133 @@
     });
   }
 
-  // ---- helpers ----
-  const fmt = (n) => (n === null || n === undefined ? '—' : String(n));
-  const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
-  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
   // Build result UI once
   let resultsHost = null;
+  let logHost = null;
+
   let histCtx = null;
   let logBox = null;
   let logTail = null;
   let toggleLogBtn = null;
 
   function ensureResultsUI() {
-    if (resultsHost) return;
-    if (!pageContainer) return;
+    if (resultsHost && logHost) return;
 
-    resultsHost = document.createElement('div');
-    resultsHost.className = 'stack-12';
-    resultsHost.id = 'house-results';
-    resultsHost.innerHTML = `
-      <div class="card">
-        <div class="k">Iterations</div>
-        <div class="v" id="it_val">—</div>
-      </div>
+    // Fallbacks so you don’t break if someone forgets to add mounts
+    const resultsParent = resultsMount || pageContainer;
+    const logParent     = logMount || pageContainer;
+    if (!resultsParent || !logParent) return;
 
-      <div class="card">
-        <div class="k">Robots</div>
-        <div class="v" id="r_total">—</div>
-        <div class="k" style="margin-top:8px;">Untapped / Tapped</div>
-        <div class="v"><span id="r_ut">—</span> / <span id="r_tp">—</span></div>
-      </div>
+    // ---- Stats + histogram host ----
+    if (!resultsHost) {
+      resultsHost = document.createElement('div');
+      resultsHost.className = 'stack-12';
+      resultsHost.id = 'house-results';
 
-      <div class="card">
-        <div class="k">Treasures</div>
-        <div class="v" id="t_total">—</div>
-        <div class="k" style="margin-top:8px;">Untapped / Tapped</div>
-        <div class="v"><span id="t_ut">—</span> / <span id="t_tp">—</span></div>
-      </div>
-
-      <div class="card">
-        <div class="k">Puzzlebox State</div>
-        <div class="v" id="pb_state">—</div>
-      </div>
-
-      <div class="card">
-        <div class="k">Puzzlebox Counters</div>
-        <div class="v" id="pb_cnt">—</div>
-      </div>
-
-      <div class="card">
-        <div class="k">Puzzlebox Mana</div>
-        <div class="v" id="pb_mana">—</div>
-      </div>
-
-      <div class="card">
-        <div class="k">Roll Histogram (d20)</div>
-        <canvas id="hist" height="140" style="width:100%; display:block;"></canvas>
-      </div>
-
-      <div class="card">
-        <div class="row" style="justify-content:space-between; align-items:center;">
-          <div class="k">Log</div>
-          <div class="row" style="gap:8px;">
-            <button class="btn btn--small" id="toggleLogBtn" type="button" aria-expanded="false">Show</button>
-            <button class="btn btn--small" id="clearLogBtn" type="button">Clear</button>
-          </div>
+      resultsHost.innerHTML = `
+        <div class="card">
+          <div class="k">Iterations</div>
+          <div class="v" id="it_val">—</div>
         </div>
-        <div id="logTail" class="house-log house-log--tail"></div>
-        <div id="logBox" class="house-log" style="display:none;"></div>
-      </div>
-    `;
-    pageContainer.appendChild(resultsHost);
 
-    histCtx = $('#hist', resultsHost)?.getContext('2d');
-    logBox  = $('#logBox', resultsHost);
-    logTail = $('#logTail', resultsHost);
-    toggleLogBtn = $('#toggleLogBtn', resultsHost);
+        <div class="card">
+          <div class="k">Robots</div>
+          <div class="v" id="r_total">—</div>
+          <div class="k" style="margin-top:8px;">Untapped / Tapped</div>
+          <div class="v"><span id="r_ut">—</span> / <span id="r_tp">—</span></div>
+        </div>
 
-    // Clear log button
-    $('#clearLogBtn', resultsHost).addEventListener('click', () => {
-      logBox.innerHTML = '';
-      logTail.innerHTML = '<div class="log-empty">No log.</div>';
-    });
+        <div class="card">
+          <div class="k">Treasures</div>
+          <div class="v" id="t_total">—</div>
+          <div class="k" style="margin-top:8px;">Untapped / Tapped</div>
+          <div class="v"><span id="t_ut">—</span> / <span id="t_tp">—</span></div>
+        </div>
 
-    // Toggle expand/collapse
-    toggleLogBtn.addEventListener('click', () => {
-      const expanded = logBox.style.display !== 'none';
-      if (expanded) {
-        logBox.style.display = 'none';
-        toggleLogBtn.textContent = 'Show';
-        toggleLogBtn.setAttribute('aria-expanded', 'false');
-      } else {
-        logBox.style.display = 'block';
-        toggleLogBtn.textContent = 'Hide';
-        toggleLogBtn.setAttribute('aria-expanded', 'true');
-        logBox.scrollTop = logBox.scrollHeight;
+        <div class="card">
+          <div class="k">Puzzlebox State</div>
+          <div class="v" id="pb_state">—</div>
+        </div>
+
+        <div class="card">
+          <div class="k">Puzzlebox Counters</div>
+          <div class="v" id="pb_cnt">—</div>
+        </div>
+
+        <div class="card">
+          <div class="k">Puzzlebox Mana</div>
+          <div class="v" id="pb_mana">—</div>
+        </div>
+
+        <div class="card">
+          <div class="k">Roll Histogram (d20)</div>
+          <canvas id="hist" height="140" style="width:100%; display:block;"></canvas>
+        </div>
+      `;
+
+      resultsParent.appendChild(resultsHost);
+      const histEl = $('#hist', resultsHost);
+      histCtx = histEl ? histEl.getContext('2d') : null;
+    }
+
+    // ---- Log-only host (3rd column) ----
+    if (!logHost) {
+      logHost = document.createElement('div');
+      logHost.className = 'stack-12';
+      logHost.id = 'house-log';
+
+      logHost.innerHTML = `
+        <div class="card">
+          <div class="row" style="justify-content:space-between; align-items:center;">
+            <div class="k">Log</div>
+            <div class="row" style="gap:8px;">
+              <button class="btn btn--small" id="toggleLogBtn" type="button" aria-expanded="false">Show</button>
+              <button class="btn btn--small" id="clearLogBtn" type="button">Clear</button>
+            </div>
+          </div>
+          <div id="logTail" class="house-log house-log--tail"></div>
+          <div id="logBox" class="house-log" style="display:none;"></div>
+        </div>
+      `;
+
+      logParent.appendChild(logHost);
+
+      logBox  = $('#logBox', logHost);
+      logTail = $('#logTail', logHost);
+      toggleLogBtn = $('#toggleLogBtn', logHost);
+
+      const clearBtn = $('#clearLogBtn', logHost);
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          if (logBox) logBox.innerHTML = '';
+          if (logTail) logTail.innerHTML = '<div class="log-empty">No log.</div>';
+        });
       }
-    });
+
+      if (toggleLogBtn && logBox) {
+        toggleLogBtn.addEventListener('click', () => {
+          const expanded = logBox.style.display !== 'none';
+          if (expanded) {
+            logBox.style.display = 'none';
+            toggleLogBtn.textContent = 'Show';
+            toggleLogBtn.setAttribute('aria-expanded', 'false');
+            saveLogPref(false);
+          } else {
+            logBox.style.display = 'block';
+            toggleLogBtn.textContent = 'Hide';
+            toggleLogBtn.setAttribute('aria-expanded', 'true');
+            logBox.scrollTop = logBox.scrollHeight;
+            saveLogPref(true);
+          }
+        });
+      }
+    }
+  }
+
+  function clearHistogram() {
+    if (!histCtx) return;
+    const c = histCtx.canvas;
+    histCtx.clearRect(0, 0, c.width, c.height);
   }
 
   function drawHistogram(hist) {
@@ -213,10 +276,16 @@
     const deltas = [];
     if (e.created?.robots)    deltas.push(`+${e.created.robots} Robot${e.created.robots > 1 ? 's' : ''}`);
     if (e.created?.treasures) deltas.push(`+${e.created.treasures} Treasure${e.created.treasures > 1 ? 's' : ''}`);
+
     const taps = (e.tapped_for_clock && e.tapped_for_clock.length)
       ? `tapped: ${e.tapped_for_clock.map(esc).join(', ')}`
       : '';
-    const note = e.note ? `— ${esc(e.note)}` : '';
+
+    const noteStr = (typeof e.note === 'string') ? e.note : '';
+    const isStopNote = noteStr && noteStr.toLowerCase().includes('reached');
+    const note = noteStr
+      ? `<span class="log-note ${isStopNote ? 'log-note--stop' : ''}">— ${esc(noteStr)}</span>`
+      : '';
 
     return `
       <div class="log-line">
@@ -225,24 +294,44 @@
         <span class="log-roll"><span class="log-label">roll</span> ${esc(e.roll)}</span>
         ${deltas.length ? `<span class="log-sep">•</span><span class="log-delta">${esc(deltas.join(', '))}</span>` : ''}
         ${taps ? `<span class="log-sep">•</span><span class="log-tapped">${taps}</span>` : ''}
-        ${note ? `<span class="log-note"> ${note}</span>` : ''}
+        ${note ? `<span class="log-sep">•</span>${note}` : ''}
       </div>
     `;
+  }
+
+  function setLogExpanded(expanded) {
+    ensureResultsUI();
+    if (!logBox || !toggleLogBtn) return;
+
+    if (expanded) {
+      logBox.style.display = 'block';
+      toggleLogBtn.textContent = 'Hide';
+      toggleLogBtn.setAttribute('aria-expanded', 'true');
+      logBox.scrollTop = logBox.scrollHeight;
+    } else {
+      logBox.style.display = 'none';
+      toggleLogBtn.textContent = 'Show';
+      toggleLogBtn.setAttribute('aria-expanded', 'false');
+    }
   }
 
   function renderLog(logArr) {
     ensureResultsUI();
     if (!logBox || !logTail || !toggleLogBtn) return;
 
-    logBox.style.display = 'none';
-    toggleLogBtn.textContent = 'Show';
-    toggleLogBtn.setAttribute('aria-expanded', 'false');
+    const hasLog = Array.isArray(logArr) && logArr.length > 0;
 
-    if (!logArr || !logArr.length) {
+    const saved = getSavedLogPref();
+    const autoExpand = hasLog && logArr.length <= 12;
+    const shouldExpand = (saved !== null) ? saved : autoExpand;
+
+    if (!hasLog) {
       logTail.innerHTML = '<div class="log-empty">No steps (stopped immediately).</div>';
       logBox.innerHTML = '';
+      setLogExpanded(false);
       return;
     }
+
     const last = logArr[logArr.length - 1];
     logTail.innerHTML = `
       <div class="log-line log-line--tail">
@@ -251,6 +340,7 @@
     `;
 
     logBox.innerHTML = logArr.map(formatLogLine).join('');
+    setLogExpanded(shouldExpand);
   }
 
   function renderResults(res) {
@@ -292,6 +382,41 @@
     renderLog(res.log || []);
   }
 
+  function clearResultsUI() {
+    ensureResultsUI();
+
+    const setText = (sel, val) => {
+      const el = $(sel);
+      if (el) el.textContent = val;
+    };
+
+    setText('#it_val', '—');
+    setText('#r_total', '—'); setText('#r_ut', '—'); setText('#r_tp', '—');
+    setText('#t_total', '—'); setText('#t_ut', '—'); setText('#t_tp', '—');
+    setText('#pb_state', '—');
+    setText('#pb_cnt', '—');
+    setText('#pb_mana', '—');
+
+    clearHistogram();
+    renderLog([]);
+
+    updateSticky({
+      iterations: null,
+      robots:    { total: null },
+      treasures: { total: null },
+      puzzlebox: { counters: null, mana: null }
+    });
+
+    if (runNote) runNote.textContent = '';
+  }
+
+  if (resetBtn && form) {
+    resetBtn.addEventListener('click', () => {
+      form.reset();
+      clearResultsUI();
+    });
+  }
+
   if (copySummaryBtn) {
     copySummaryBtn.addEventListener('click', async () => {
       const summary = [
@@ -301,6 +426,7 @@
         sCounters?.textContent || '',
         sMana?.textContent || ''
       ].filter(Boolean).join(' • ');
+
       try {
         await navigator.clipboard.writeText(summary);
         if (runNote) runNote.textContent = 'Copied.';
@@ -316,7 +442,6 @@
     e.preventDefault();
     if (!runBtn) return;
 
-    // If Delney is checked and no stop conditions are set, auto-enable stop-at-100.
     if (delneyChk && delneyChk.checked) {
       const stopAt100 = $('#stop_ge_100');
       const st = num($('#stop_treasures_ge')?.value);
@@ -372,7 +497,6 @@
     }
   }
 
-  // Initialize sticky summary
   updateSticky({
     iterations: null,
     robots:    { total: null, untapped: null, tapped: null },
@@ -380,7 +504,6 @@
     puzzlebox: { counters: null, mana: null }
   });
 
-  // Boot with server-rendered result if present
   const bootData = $('#result')?.dataset?.json;
   if (bootData) {
     try { renderResults(JSON.parse(bootData)); } catch {}
