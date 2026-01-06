@@ -8,18 +8,18 @@
 
 {% block content %}
 
-<!-- Sticky summary bar (JS updates by id) -->
-<div class="summary">
-  <span><span class="k">Iter:</span> <span class="v" id="s-iters">—</span></span>
-  <span><span class="k">R:</span> <span class="v" id="s-robots">—</span></span>
-  <span><span class="k">T:</span> <span class="v" id="s-treas">—</span></span>
-  <span><span class="k">PB Cntrs:</span> <span class="v" id="s-counters">—</span></span>
-  <span><span class="k">Mana:</span> <span class="v" id="s-mana">—</span></span>
-  <button class="btn btn--ghost" id="copySummaryBtn" type="button">Copy</button>
-</div>
-
 <section class="container page house">
   <h1 class="house-title">Mr. House’s Puzzlebox Simulator</h1>
+
+  <!-- Sticky summary bar (JS updates by id) -->
+  <div class="summary">
+    <span><span class="k"></span> <span class="v" id="s-iters">—</span></span>
+    <span><span class="k"></span> <span class="v" id="s-robots">—</span></span>
+    <span><span class="k"></span> <span class="v" id="s-treas">—</span></span>
+    <span><span class="k"></span> <span class="v" id="s-counters">—</span></span>
+    <span><span class="k"></span> <span class="v" id="s-mana">—</span></span>
+    <button class="btn btn--ghost" id="copySummaryBtn" type="button">Copy</button>
+  </div>
 
   <div class="house-layout">
     <!-- LEFT: Controls -->
@@ -73,16 +73,22 @@
           <input id="seed" name="seed" type="number" placeholder="—" />
         </div>
 
-        <div class="row">
+        <div class="row house-actions">
           <button id="runBtn" class="btn btn--primary" type="submit">Run Simulation</button>
+          <button id="resetBtn" class="btn btn--ghost" type="button">Reset</button>
           <div id="runNote" class="hint"></div>
         </div>
       </form>
     </div>
 
-    <!-- RIGHT: Results (JS will render into this) -->
+    <!-- MIDDLE: Results (JS renders into #resultsMount) -->
     <div class="house-results">
       <div id="resultsMount" class="stack-12"></div>
+    </div>
+
+    <!-- RIGHT: Log column (JS renders into #logMount) -->
+    <div class="house-logcol">
+      <div id="logMount" class="stack-12"></div>
     </div>
   </div>
 

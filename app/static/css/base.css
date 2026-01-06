@@ -6,29 +6,29 @@
 /* --- Reset / base --- */
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; }
 
 :root {
-  /* Core palette */
-  --bg: #071b1a;
-  --bg2: #062321;
-  --panel: rgba(14, 45, 43, 0.78);
-  --panel2: rgba(11, 36, 34, 0.92);
+  /* Core palette (Charcoal + Warm) */
+  --bg: #0f1214;
+  --bg2: #13181b;
 
-  --fg: #eaf6f4;
-  --muted: rgba(234, 246, 244, 0.72);
-  --dim: rgba(234, 246, 244, 0.55);
+  --panel: rgba(28, 34, 38, 0.78);
+  --panel2: rgba(22, 28, 32, 0.92);
 
-  --line: rgba(160, 230, 220, 0.12);
-  --line2: rgba(160, 230, 220, 0.18);
+  --fg: #f2f3f4;
+  --muted: rgba(242, 243, 244, 0.74);
+  --dim: rgba(242, 243, 244, 0.56);
 
-  --accent: #6de2d1;
-  --accent2: #7bf0da;
+  --line: rgba(255, 214, 153, 0.10);
+  --line2: rgba(255, 214, 153, 0.16);
+
+  --accent: #ffd699;
+  --accent2: #ffe1b3;
   --warn: #ffcc66;
   --bad: #ff6b6b;
 
-  --shadow: 0 20px 60px rgba(0,0,0,0.35);
-  --shadow-soft: 0 10px 30px rgba(0,0,0,0.22);
+  --shadow: 0 20px 60px rgba(0,0,0,0.45);
+  --shadow-soft: 0 10px 30px rgba(0,0,0,0.27);
 
   --r-12: 12px;
   --r-16: 16px;
@@ -39,18 +39,41 @@ body { margin: 0; }
   --pad-20: 20px;
   --pad-24: 24px;
 
-  --focus: 0 0 0 3px rgba(109, 226, 209, 0.28);
-  --focus2: 0 0 0 1px rgba(109, 226, 209, 0.35);
+  --focus: 0 0 0 3px rgba(255, 214, 153, 0.22);
+  --focus2: 0 0 0 1px rgba(255, 214, 153, 0.32);
+
+  --container-max: 1320px;
+  --container-pad: 32px;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+
+  /* Warm, subtle background glows (replacing old teal glows) */
+  background:
+    radial-gradient(
+      1100px 580px at 20% -10%,
+      rgba(255, 214, 153, 0.10),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 600px at 70% 120%,
+      rgba(255, 214, 153, 0.06),
+      transparent 65%
+    ),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 html {
   font: 16px/1.55 system-ui, -apple-system, Segoe UI, Roboto,
         "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
   color: var(--fg);
-  background:
-    radial-gradient(1100px 500px at 20% -10%, rgba(109, 226, 209, 0.16), transparent 60%),
-    radial-gradient(900px 600px at 70% 0%, rgba(123, 240, 218, 0.10), transparent 65%),
-    linear-gradient(180deg, var(--bg), var(--bg2));
+  height: 100%;
+  background: none;
 }
 
 a { color: var(--accent2); text-decoration: none; }
@@ -58,7 +81,7 @@ a:hover { text-decoration: underline; }
 
 /* Typography */
 h1, h2, h3 { margin: 0; letter-spacing: 0.2px; }
-h1 { font-size: 26px; font-weight: 900; margin: 10px 0 8px; }
+h1 { font-size: 30px; font-weight: 900; margin: 10px 0 8px; }
 h2 { font-size: 20px; font-weight: 800; margin: 10px 0 6px; }
 h3 { font-size: 16px; font-weight: 800; margin: 10px 0 6px; }
 
@@ -68,11 +91,11 @@ label { display: block; margin: 12px 0 6px; font-weight: 800; color: var(--fg); 
 
 /* --- Layout utilities --- */
 .container {
-  width: min(980px, calc(100% - 32px));
+  width: min(980px, calc(100% - 32px)); /* fixed calc spacing */
   margin: 0 auto;
 }
 
-.page { padding: 18px 0 34px; }
+.page { padding: 22px 0 46px; }
 
 .stack-8  > * + * { margin-top: 8px; }
 .stack-12 > * + * { margin-top: 12px; }
@@ -96,16 +119,19 @@ label { display: block; margin: 12px 0 6px; font-weight: 800; color: var(--fg); 
   top: 0;
   z-index: 40;
   backdrop-filter: blur(10px);
-  background: linear-gradient(180deg, rgba(6, 28, 26, 0.88), rgba(6, 28, 26, 0.62));
+  background: linear-gradient(
+    180deg,
+    rgba(18, 22, 24, 0.92),
+    rgba(18, 22, 24, 0.68)
+  );
   border-bottom: 1px solid var(--line);
 }
 
 .nav > .nav__inner {
-  width: min(980px, calc(100% - 32px));
+  width: 100%;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 10px 0;
   gap: 14px;
 }
@@ -118,6 +144,7 @@ label { display: block; margin: 12px 0 6px; font-weight: 800; color: var(--fg); 
   letter-spacing: 0.4px;
   color: var(--fg);
   text-decoration: none;
+  padding-left: 10px;
 }
 
 .nav__brand:hover { text-decoration: none; }
@@ -138,7 +165,7 @@ label { display: block; margin: 12px 0 6px; font-weight: 800; color: var(--fg); 
   text-decoration: none;
   color: var(--fg);
   border-color: var(--line2);
-  background: rgba(109, 226, 209, 0.06);
+  background: rgba(255, 214, 153, 0.06);
 }
 
 /* --- Panels / Cards --- */
@@ -146,8 +173,8 @@ label { display: block; margin: 12px 0 6px; font-weight: 800; color: var(--fg); 
   border-radius: var(--r-16);
   border: 1px solid var(--line);
   background:
-    radial-gradient(900px 260px at 30% 0%, rgba(109, 226, 209, 0.10), transparent 60%),
-    linear-gradient(180deg, rgba(14, 45, 43, 0.88), rgba(10, 32, 31, 0.92));
+    radial-gradient(900px 260px at 30% 0%, rgba(255, 214, 153, 0.09), transparent 60%),
+    linear-gradient(180deg, var(--panel2), rgba(18, 22, 24, 0.92));
   box-shadow: var(--shadow-soft);
   padding: var(--pad-20);
 }
@@ -156,7 +183,7 @@ label { display: block; margin: 12px 0 6px; font-weight: 800; color: var(--fg); 
 
 .card--clickable { cursor: pointer; }
 .card--clickable:hover {
-  border-color: rgba(160, 230, 220, 0.28);
+  border-color: rgba(255, 214, 153, 0.24);
   box-shadow: 0 18px 50px rgba(0,0,0,0.32);
   transform: translateY(-1px);
 }
@@ -173,7 +200,7 @@ label { display: block; margin: 12px 0 6px; font-weight: 800; color: var(--fg); 
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--line2);
-  background: linear-gradient(180deg, rgba(20, 60, 58, 0.92), rgba(10, 34, 33, 0.92));
+  background: linear-gradient(180deg, rgba(34, 42, 46, 0.92), rgba(18, 22, 24, 0.92));
   color: var(--fg);
   font-weight: 900;
   letter-spacing: 0.2px;
@@ -183,15 +210,15 @@ label { display: block; margin: 12px 0 6px; font-weight: 800; color: var(--fg); 
 }
 
 .btn:hover {
-  border-color: rgba(160, 230, 220, 0.35);
-  background: linear-gradient(180deg, rgba(24, 74, 71, 0.92), rgba(10, 34, 33, 0.92));
+  border-color: rgba(255, 214, 153, 0.28);
+  background: linear-gradient(180deg, rgba(40, 50, 54, 0.92), rgba(18, 22, 24, 0.92));
 }
 
 .btn:active { transform: translateY(1px); }
 
 .btn--primary {
-  border-color: rgba(109, 226, 209, 0.35);
-  background: linear-gradient(180deg, rgba(109, 226, 209, 0.18), rgba(10, 34, 33, 0.92));
+  border-color: rgba(255, 214, 153, 0.32);
+  background: linear-gradient(180deg, rgba(255, 214, 153, 0.16), rgba(18, 22, 24, 0.92));
 }
 
 .btn--ghost {
@@ -210,17 +237,19 @@ textarea {
   border-radius: 14px;
   padding: 12px 12px;
   border: 1px solid var(--line);
-  background: rgba(4, 20, 19, 0.72);
+  background: rgba(16, 18, 20, 0.72);
   color: var(--fg);
   outline: none;
 }
 
-input:not([type="checkbox"])::placeholder { color: rgba(234,246,244,0.35); }
+input:not([type="checkbox"])::placeholder {
+  color: rgba(242, 243, 244, 0.32);
+}
 
 input:not([type="checkbox"]):focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  border-color: rgba(109, 226, 209, 0.35);
+  border-color: rgba(255, 214, 153, 0.32);
   box-shadow: var(--focus);
 }
 
@@ -247,7 +276,7 @@ input[type="checkbox"] {
   padding: 7px 10px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(109, 226, 209, 0.08);
+  background: rgba(255, 214, 153, 0.08);
   color: var(--fg);
   font-weight: 900;
   letter-spacing: 0.2px;
@@ -256,7 +285,10 @@ input[type="checkbox"] {
   pointer-events: auto; /* protect clickability */
 }
 
-.chip:hover { border-color: rgba(160, 230, 220, 0.28); background: rgba(109, 226, 209, 0.12); }
+.chip:hover {
+  border-color: rgba(255, 214, 153, 0.24);
+  background: rgba(255, 214, 153, 0.12);
+}
 .chip:active { transform: translateY(1px); }
 
 /* --- Key/Value layout helpers (used by House results) --- */
@@ -273,7 +305,7 @@ input[type="checkbox"] {
   gap: 14px;
   margin-top: 14px;
   justify-content: center;
-  max-width: 640px;
+  max-width: 980px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -298,8 +330,8 @@ input[type="checkbox"] {
   pointer-events: none;
   max-width: min(420px, calc(100vw - 28px));
   border-radius: 14px;
-  border: 1px solid rgba(160, 230, 220, 0.22);
-  background: linear-gradient(180deg, rgba(14, 45, 43, 0.92), rgba(6, 22, 21, 0.92));
+  border: 1px solid rgba(255, 214, 153, 0.20);
+  background: linear-gradient(180deg, rgba(28, 34, 38, 0.92), rgba(18, 22, 24, 0.92));
   color: var(--fg);
   font-weight: 850;
   padding: 10px 12px;
