@@ -1,7 +1,6 @@
 # /opt/r4t/app/main.py
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import time
@@ -16,7 +15,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import configure_root_logger, settings
 from app.db.pool import close_pool, init_pool
-from app.features.treasure.store import periodic_cleanup
 from app.web.router import make_root_router
 
 # -------- JSON logging (preserve existing behavior) --------
@@ -78,12 +76,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # DB pool
     await init_pool()
-
-    # Periodic TTL cleanup (sessions)
-    app.state.cleanup_stop = asyncio.Event()
-    app.state.cleanup_task = asyncio.create_task(
-        periodic_cleanup(ttl_hours=72, interval_seconds=900, stop_event=app.state.cleanup_stop)
-    )
 
     try:
         yield
