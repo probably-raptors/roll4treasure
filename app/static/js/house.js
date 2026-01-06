@@ -23,6 +23,7 @@
   const copySummaryBtn = $('#copySummaryBtn');
 
   const pageContainer = $('.container.page');
+  const resultsMount = $('#resultsMount');
 
   // Untapped field + chips
   const untapped = $('#untapped_other_init');
@@ -62,7 +63,9 @@
 
   function ensureResultsUI() {
     if (resultsHost) return;
-    if (!pageContainer) return;
+
+    const mount = resultsMount || pageContainer;
+    if (!mount) return;
 
     resultsHost = document.createElement('div');
     resultsHost.className = 'stack-12';
@@ -119,7 +122,7 @@
         <div id="logBox" class="house-log" style="display:none;"></div>
       </div>
     `;
-    pageContainer.appendChild(resultsHost);
+    mount.appendChild(resultsHost);
 
     histCtx = $('#hist', resultsHost)?.getContext('2d');
     logBox  = $('#logBox', resultsHost);

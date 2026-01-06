@@ -1,131 +1,98 @@
 {% extends "base.html" %}
 
-{% block title %}Mr. House's Puzzlebox{% endblock %}
+{% block title %}Mr. House{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/house.css">
+  <link rel="stylesheet" href="/static/css/house.css">
 {% endblock %}
 
 {% block content %}
 
-<!-- Sticky summary -->
-<div class="house-sticky" id="sticky">
-  <div class="container house-summary-row">
-    <div class="house-summary-metrics">
-      <span id="s-iters" class="k">— iters</span>
-      <span id="s-robots" class="k">R:—</span>
-      <span id="s-treas" class="k">T:—</span>
-      <span id="s-counters" class="k">PB Cntrs:—</span>
-      <span id="s-mana" class="k">Mana:—</span>
-    </div>
-
-    <button class="btn btn--small" id="copySummaryBtn" type="button">
-      Copy
-    </button>
-  </div>
+<!-- Sticky summary bar (JS updates by id) -->
+<div class="summary">
+  <span><span class="k">Iter:</span> <span class="v" id="s-iters">—</span></span>
+  <span><span class="k">R:</span> <span class="v" id="s-robots">—</span></span>
+  <span><span class="k">T:</span> <span class="v" id="s-treas">—</span></span>
+  <span><span class="k">PB Cntrs:</span> <span class="v" id="s-counters">—</span></span>
+  <span><span class="k">Mana:</span> <span class="v" id="s-mana">—</span></span>
+  <button class="btn btn--ghost" id="copySummaryBtn" type="button">Copy</button>
 </div>
 
-<section class="container page stack-16">
+<section class="container page house">
+  <h1 class="house-title">Mr. House’s Puzzlebox Simulator</h1>
 
-  <h1>Mr. House's Puzzlebox Simulator</h1>
-
-  <form id="simForm"
-        method="POST"
-        action="{{ url_for('run_sim') }}"
-        autocomplete="off"
-        class="card stack-16">
-
-    <div class="grid">
-      <div>
-        <label for="untapped_other_init">
-          Untapped artifacts (excluding Puzzlebox)
-        </label>
-
-        <input id="untapped_other_init"
-               name="untapped"
-               type="number"
-               min="0"
-               value="{{ untapped_other_init }}">
-
-        <div class="house-form-chips">
-          <span class="chip" data-plus="2">+2</span>
-          <span class="chip" data-plus="5">+5</span>
-          <span class="chip" data-plus="10">+10</span>
-          <span class="chip" data-set="0">Set 0</span>
+  <div class="house-layout">
+    <!-- LEFT: Controls -->
+    <div class="card house-card house-controls">
+      <form id="simForm" class="stack-16">
+        <div class="field">
+          <label for="untapped_other_init">Untapped artifacts (excluding Puzzlebox)</label>
+          <input id="untapped_other_init" name="untapped_other_init" type="number" min="0" value="0" />
+          <div class="chips">
+            <button type="button" class="chip" data-plus="2">+2</button>
+            <button type="button" class="chip" data-plus="5">+5</button>
+            <button type="button" class="chip" data-plus="10">+10</button>
+            <button type="button" class="chip" data-set="0">Set 0</button>
+          </div>
         </div>
-      </div>
+
+        <div>
+          <h2 class="section-title">Board Modifiers</h2>
+          <div class="checkbox-row mod-row">
+            <input id="delney" name="delney" type="checkbox" />
+            <label for="delney" style="margin:0;">Delney, Streetwise Lookout (double Mr. House trigger)</label>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="section-title">Stop Conditions</h2>
+
+          <div class="checkbox-row">
+            <input id="stop_ge_100" name="stop_ge_100" type="checkbox" />
+            <label for="stop_ge_100" style="margin:0;">Stop at PB counters ≥ 100</label>
+          </div>
+
+          <div class="field">
+            <label for="stop_treasures_ge">Stop at total Treasures ≥</label>
+            <input id="stop_treasures_ge" name="stop_treasures_ge" type="number" min="0" placeholder="—" />
+          </div>
+
+          <div class="field">
+            <label for="stop_robots_ge">Stop at total Robots ≥</label>
+            <input id="stop_robots_ge" name="stop_robots_ge" type="number" min="0" placeholder="—" />
+          </div>
+
+          <div class="field">
+            <label for="stop_mana_ge">Stop at PB Mana ≥</label>
+            <input id="stop_mana_ge" name="stop_mana_ge" type="number" min="0" placeholder="—" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="seed">Seed (optional)</label>
+          <input id="seed" name="seed" type="number" placeholder="—" />
+        </div>
+
+        <div class="row">
+          <button id="runBtn" class="btn btn--primary" type="submit">Run Simulation</button>
+          <div id="runNote" class="hint"></div>
+        </div>
+      </form>
     </div>
 
-    <h2>Board Modifiers</h2>
-
-    <div class="house-checklist row">
-      <input type="checkbox"
-             id="delney"
-             name="delney"
-             value="1"
-             {{ 'checked' if delney else '' }}>
-      <label for="delney">
-        Delney, Streetwise Lookout (double Mr. House trigger)
-      </label>
+    <!-- RIGHT: Results (JS will render into this) -->
+    <div class="house-results">
+      <div id="resultsMount" class="stack-12"></div>
     </div>
+  </div>
 
-    <h2>Stop Conditions</h2>
-
-    <div class="house-checklist row">
-      <input type="checkbox"
-             id="stop_ge_100"
-             name="stop_at_100"
-             value="1"
-             {{ 'checked' if stop_at_100 else '' }}>
-      <label for="stop_ge_100">Stop at PB counters ≥ 100</label>
-    </div>
-
-    <label for="stop_treasures_ge">Stop at total Treasures ≥</label>
-    <input id="stop_treasures_ge"
-           name="stop_treasures_ge"
-           type="number"
-           min="0"
-           value="{{ stop_treasures_ge }}"
-           placeholder="—">
-
-    <label for="stop_robots_ge">Stop at total Robots ≥</label>
-    <input id="stop_robots_ge"
-           name="stop_robots_ge"
-           type="number"
-           min="0"
-           value="{{ stop_robots_ge }}"
-           placeholder="—">
-
-    <label for="stop_mana_ge">Stop at PB Mana ≥</label>
-    <input id="stop_mana_ge"
-           name="stop_mana_ge"
-           type="number"
-           min="0"
-           value="{{ stop_mana_ge }}"
-           placeholder="—">
-
-    <label for="seed">Seed (optional)</label>
-    <input id="seed"
-           name="seed"
-           type="number"
-           value="{{ seed }}">
-
-    <div class="row">
-      <button id="runBtn" class="btn" type="submit">Run Simulation</button>
-      <span id="runNote" class="muted"></span>
-    </div>
-  </form>
-
-  {% if result_json %}
-  <section class="card stack-16 house-results">
-    <h2>Results</h2>
-    <div id="result" data-json='{{ result_json | safe }}'></div>
-  </section>
-  {% endif %}
-
+  <!-- Optional server-bootstrapped result (JS reads #result[data-json]) -->
+  <div id="result" data-json=""></div>
 </section>
+
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/house.js"></script>
+  <script src="/static/js/base.js"></script>
+  <script src="/static/js/house.js"></script>
 {% endblock %}
