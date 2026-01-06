@@ -135,13 +135,27 @@
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.10);
 }
 
+.house #logBox.house-log {
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 10px;
+}
+
 .house .log-line {
+  display: flex;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+  flex-wrap: wrap;
+
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.35;
   color: rgba(234, 246, 244, 0.86);
-  white-space: pre-wrap;
-  word-break: break-word;
+
+  /* critical: do NOT preserve template-string newlines/indentation */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .house .log-tail {
@@ -150,4 +164,36 @@
   border-top: 1px dashed rgba(160, 230, 220, 0.16);
   color: rgba(234, 246, 244, 0.64);
   font-size: 12px;
+}
+
+.house #logTail.house-log--tail {
+  max-height: none;
+}
+
+/* Token styling for formatLogLine() spans */
+.house .log-idx {
+  color: rgba(234, 246, 244, 0.72);
+  font-weight: 900;
+}
+
+.house .log-sep {
+  color: rgba(234, 246, 244, 0.30);
+}
+
+.house .log-roll .log-label {
+  color: rgba(234, 246, 244, 0.55);
+  font-weight: 800;
+}
+
+.house .log-delta {
+  color: rgba(123, 240, 218, 0.88);
+  font-weight: 900;
+}
+
+.house .log-tapped {
+  color: rgba(234, 246, 244, 0.70);
+}
+
+.house .log-note {
+  color: rgba(234, 246, 244, 0.75);
 }
